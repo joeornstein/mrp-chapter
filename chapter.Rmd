@@ -1,0 +1,146 @@
+---
+title: "Multilevel Regression And Poststratification (A Primer)"
+author:
+  - Joseph T. Ornstein^[Department of Political Science, University of Georgia]
+date: "October 26, 2021"
+output:
+  pdf_document:
+    number_sections: yes
+bibliography: references.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+set.seed(42)
+```
+
+# Running Example
+
+To demonstrate how MRP works, we'll consider an example where we know the "real" answer, and can explore how various refinements to the model improve predictive accuracy. The approach we'll use mirrors that in @buttice2013, taking responses from a large scale US survey of voters (schaffner ref).[^1]
+
+[^1]: Throughout, I will use R functions from the "tidyverse" to make the code more human-readable.
+
+```{r load-ces}
+library(tidyverse)
+library(ggrepel)
+
+load('data/CES-2020.RData')
+```
+
+The data is available [here](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi%3A10.7910/DVN/E9N6PH), and we'll be using a tidied up version of the dataset created by `R/cleanup-ces-2020.R`. This tidied version of the data only includes the `r length(unique(ces$abb))` states with at least 500 respondents.
+
+## The Truth
+
+```{r truth}
+truth <- ces %>% 
+  filter(!is.na(assault_rifle_ban)) %>% 
+  group_by(abb) %>% 
+  summarize(truth = sum(assault_rifle_ban == 'Support') / n())
+
+# plot
+truth %>% 
+  # reorder abb so the chart is organized by percent who support
+  mutate(abb = fct_reorder(abb, truth)) %>% 
+  ggplot(mapping = aes(x=truth, y=abb)) +
+  geom_point(alpha = 0.7) +
+  theme_minimal()
+```
+
+Note what I mean by the "truth" here is the true percentage of CES respondents who supported the assault rifle ban. That's our target. This overstates the percent of the total population that support such a ban, since the CES sample is not a simple random sample.
+
+## Draw a Sample
+
+Step 1: draw a sample.
+
+```{r sample}
+sample_data <- ces %>% 
+  slice_sample(n = 500)
+```
+
+```{r disaggregate}
+sample_summary <- sample_data %>% 
+  filter(!is.na(assault_rifle_ban)) %>% 
+  group_by(abb) %>% 
+  summarize(pct_support = sum(assault_rifle_ban == 'Support') / n(),
+            num = n())
+
+sample_summary
+```
+
+For readers who are less familiar with American politics, rest assured that this is an unrepresentative draw from the state of Iowa. So simply disaggregating and taking sample means will not yield good estimates, as you can see by comparing the percent of respondents from the sample who supported the ban against the percent of CES respondents.
+
+```{r compare-disaggregation}
+sample_summary %>% 
+  left_join(truth, by = 'abb') %>% 
+  ggplot(mapping = aes(x=pct_support,
+                       y=truth,
+                       label=abb)) +
+  geom_point(alpha = 0.5) +
+  geom_text_repel() +
+  theme_minimal() +
+  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+  labs(x = 'Sample Average',
+       y = 'Truth',
+       title = 'Disaggregated Estimates')
+```
+
+## Multilevel Regression
+
+```{r model}
+
+# TODO: multilevel model; show how partial pooling fixes a bunch here.
+
+# logistic model
+model <- glm(as.numeric(assault_rifle_ban == 'Support') ~
+              gender + educ + race + age,
+            data = sample_data,
+            family = 'binomial')
+
+summary(model)
+```
+
+## Poststratification
+
+```{r psframe}
+psframe <- ces %>% 
+  count(abb, gender, educ, race, age)
+
+head(psframe)
+```
+
+Append predicted probabilities to the poststratification frame.
+
+```{r predict}
+psframe <- psframe %>% 
+  mutate(predicted_probability = predict(model, psframe, type = 'response'))
+```
+
+Poststratified estimates are the population-weighted predictions
+
+```{r poststratify}
+poststratified_estimates <- psframe %>% 
+  group_by(abb) %>% 
+  summarize(estimate = weighted.mean(predicted_probability, n))
+```
+
+Merge and compare:
+
+```{r compare-to-truth}
+d <- left_join(poststratified_estimates, truth,
+               by = 'abb')
+
+library(ggrepel)
+
+ggplot(data = d,
+       mapping = aes(x = estimate, 
+                     y = truth,
+                     label = abb)) +
+  geom_point(alpha = 0.7) +
+  geom_text_repel() +
+  theme_minimal() +
+  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+  scale_x_continuous(limits = c(0.5, 0.8)) +
+  coord_equal()
+```
+
+# References
