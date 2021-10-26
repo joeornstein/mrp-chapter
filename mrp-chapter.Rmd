@@ -1,0 +1,22 @@
+---
+title: "Multilevel Regression And Poststratification (A Primer)"
+author:
+  - Joseph T. Ornstein^[University of Georgia]
+date: "October 26, 2021"
+output:
+  pdf_document:
+    number_sections: yes
+bibliography: references.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Running Example
+
+To demonstrate how MRP works, we'll consider an example where we know the "real" answer, and can explore how various refinements to the model improve predictive accuracy. The approach we'll use mirrors that in @buttice2013, taking responses from a large scale US survey of voters (schaffschaff).
+
+```{r load-ces}
+
+```
