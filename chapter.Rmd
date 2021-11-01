@@ -69,7 +69,7 @@ sample_summary
 
 For readers who are less familiar with American politics, rest assured that this is an unrepresentative draw from the state of Iowa. So simply disaggregating and taking sample means will not yield good estimates, as you can see by comparing the percent of respondents from the sample who supported the ban against the percent of CES respondents.
 
-```{r compare-disaggregation}
+```{r compare-disaggregation, fig.cap='Esimates from disaggregated sample data'}
 sample_summary %>% 
   left_join(truth, by = 'abb') %>% 
   ggplot(mapping = aes(x=pct_support,
@@ -125,13 +125,14 @@ poststratified_estimates <- psframe %>%
 
 Merge and compare:
 
-```{r compare-to-truth}
-d <- left_join(poststratified_estimates, truth,
+```{r compare-to-truth, fig.cap='Underfit MRP estimates from complete pooling model'}
+d <- left_join(poststratified_estimates, 
+               truth, 
                by = 'abb')
 
 library(ggrepel)
 
-ggplot(data = d,
+ggplot(data = d, 
        mapping = aes(x = estimate, 
                      y = truth,
                      label = abb)) +
@@ -139,8 +140,217 @@ ggplot(data = d,
   geom_text_repel() +
   theme_minimal() +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  scale_x_continuous(limits = c(0.5, 0.8)) +
-  coord_equal()
+  coord_equal() +
+  labs(caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2)))
+```
+
+This highlights one of the dangers of producing MRP estimates from an underspecified model. When the first-stage model is underfit, poststratified estimates tend to collapse towards the global mean [CITATION NEEDED + BETTER TERMINOLOGY].
+
+This compression means we should be wary of MRP studies that show policy outcomes "leapfrogging" estimated public opinion [@simonovits2020]. It could be that policymakers are more extreme than their constituents, or that MRP produces estimates of constituency preferences that are too moderate.
+
+## The Other Extreme: Overfitting
+
+To illustrate the other extreme, let's estimate a model with a separate intercept term for each state -- a "fixed effects" model. Because our sample contains several states with very few observations, these state-specific intercepts will likely overfit to sampling variability.
+
+```{r, fig.cap='Overfit MRP estimates from fixed effects model'}
+
+# fit the model
+model2 <- glm(as.numeric(assault_rifle_ban == 'Support') ~
+              gender + educ + race + age +
+                abb,
+            data = sample_data,
+            family = 'binomial')
+
+# make predictions
+psframe <- psframe %>% 
+  mutate(predicted_probability = predict(model2, psframe, type = 'response'))
+
+# poststratify
+poststratified_estimates <- psframe %>% 
+  group_by(abb) %>% 
+  summarize(estimate = weighted.mean(predicted_probability, n))
+
+
+d <- left_join(poststratified_estimates, 
+               truth, 
+               by = 'abb')
+
+ggplot(data = d, 
+       mapping = aes(x = estimate, 
+                     y = truth,
+                     label = abb)) +
+  geom_point(alpha = 0.7) +
+  geom_text_repel() +
+  theme_minimal() +
+  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+  coord_equal() +
+  labs(caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2)))
+```
+
+Compare this to Figure 1 -- these estimates are similarly overfit. Iowa is predicted to have roughly 100% support due to an idiosyncratic sample, while Maryland has the opposite problem.
+
+## The Sweet Spot: Partial Pooling
+
+@gelman1997 solution: multilevel models that partially pool across regions. (Explanation of partial pooling goes...here)
+
+```{r, fig.cap='MRP estimates from model with partial pooling'}
+library(lme4)
+
+model3 <- glmer(as.numeric(assault_rifle_ban == 'Support') ~  gender + educ + race + age +
+                (1|abb), 
+                 data = sample_data,
+                 family = 'binomial')
+
+# make predictions
+psframe <- psframe %>% 
+  mutate(predicted_probability = predict(model3, psframe, type = 'response'))
+
+# poststratify
+poststratified_estimates <- psframe %>% 
+  group_by(abb) %>% 
+  summarize(estimate = weighted.mean(predicted_probability, n))
+
+
+d <- left_join(poststratified_estimates, 
+               truth, 
+               by = 'abb')
+
+ggplot(data = d, 
+       mapping = aes(x = estimate, 
+                     y = truth,
+                     label = abb)) +
+  geom_point(alpha = 0.7) +
+  geom_text_repel() +
+  theme_minimal() +
+  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+  coord_equal() +
+  labs(caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2)))
+```
+
+TODO: Well that's not the approach we should take, then. Partial pooling isn't magic. It just undoes the damage that fixed effects does. The magic is in good geographic predictors.
+
+## Stacking
+
+```{r, fig.cap='Estimates from an ensemble first-stage model'}
+
+sample_data <- mutate(sample_data,
+                      Y = as.numeric(assault_rifle_ban == 'Support'))
+
+library(SuperLearner)
+
+
+# fit Super Learner
+SL.library <- c("SL.ranger", "SL.gam", "SL.xgboost", "SL.glm")
+
+X <- sample_data %>% 
+  select(gender, educ, race, age, abb)
+
+newX <- psframe %>% 
+  select(gender, educ, race, age, abb)
+
+sl.out <- SuperLearner(Y = sample_data$Y,
+                       X = X, 
+                       newX = newX, 
+                       family = binomial(),
+                       SL.library = SL.library, verbose = FALSE)
+#sl.out$SL.predict
+sl.out$coef
+
+# make predictions
+psframe <- psframe %>% 
+  mutate(predicted_probability = sl.out$SL.predict)
+
+# poststratify
+poststratified_estimates <- psframe %>% 
+  group_by(abb) %>% 
+  summarize(estimate = weighted.mean(predicted_probability, n))
+
+d <- left_join(poststratified_estimates, 
+               truth, 
+               by = 'abb')
+
+ggplot(data = d, 
+       mapping = aes(x = estimate, 
+                     y = truth,
+                     label = abb)) +
+  geom_point(alpha = 0.7) +
+  geom_text_repel() +
+  theme_minimal() +
+  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+  coord_equal() +
+  labs(caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2)))
+```
+
+And that's just "out-of-the-box"! What if we were more careful about it?\
+
+## Synthetic Poststratification
+
+Suppose that we did not have access to the entire joint distribution of individual-level covariates. @leemann2017 suggest an extension of Mr. P, which they (delightfully) dub Multilevel Regression and Synthetic Poststratification (Mrs. P). Lacking the full joint distribution of covariates for poststratification, one can instead create a *synthetic* poststratification frame by assuming that additional covariates are statistically independent of one another. So long as your first stage model is linear-additive, this approach yields the same predictions as if you knew the true joint distribution![^2] And even if the first-stage model is not linear-additive, simulations suggest that the improved performance from additional predictors tends to overcome the error introduced by synthetic poststratification.
+
+[^2]: See @ornstein2020 appendix A for mathematical proof.
+
+To create a synthetic poststratification frame, convert frequencies to probabilities and multiply. For example, suppose we only had the joint distribution for gender, race, and age, and wanted to create a synthetic poststratification including education.
+
+```{r synthetic-psframe}
+# poststratification frame with 3 variables
+psframe3 <- ces %>% 
+  count(abb, gender, race, age) %>% 
+  group_by(abb) %>% 
+  mutate(prob1 = n / sum(n))
+
+head(psframe3)
+
+# distribution of education variable by state
+psframe_educ <- ces %>% 
+  count(abb, educ) %>% 
+  group_by(abb) %>% 
+  mutate(prob2 = n / sum(n))
+
+head(psframe_educ)
+
+synthetic_psframe <- left_join(psframe3, psframe_educ,
+                               by = 'abb') %>% 
+  mutate(prob = prob1 * prob2)
+
+head(synthetic_psframe)
+```
+
+The `SRP` package contains a convenience function for this operation (see the [vignette](https://joeornstein.github.io/software/SRP/) for more information).
+
+Then poststratify as normal.
+
+TODO: Functions instead of comments.
+
+```{r}
+# make predictions
+synthetic_psframe$predicted_probability <-  predict(model2, synthetic_psframe, type = 'response')
+
+# poststratify
+poststratified_estimates <- synthetic_psframe %>% 
+  group_by(abb) %>% 
+  summarize(estimate = weighted.mean(predicted_probability, prob))
+
+
+d <- left_join(poststratified_estimates, 
+               truth, 
+               by = 'abb')
+
+ggplot(data = d, 
+       mapping = aes(x = estimate, 
+                     y = truth,
+                     label = abb)) +
+  geom_point(alpha = 0.7) +
+  geom_text_repel() +
+  theme_minimal() +
+  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+  coord_equal() +
+  labs(caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2)))
+```
+
+Note that the performance is slightly worse than when we knew the true joint distribution. But is it worse than omitting education entirely?
+
+```{r}
+
 ```
 
 # References
