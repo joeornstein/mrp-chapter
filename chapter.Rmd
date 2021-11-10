@@ -2,7 +2,7 @@
 title: "Multilevel Regression And Poststratification (A Primer)"
 author:
   - Joseph T. Ornstein^[Department of Political Science, University of Georgia]
-date: "October 26, 2021"
+# date: "November 15, 2021"
 output:
   pdf_document:
     number_sections: yes
@@ -13,6 +13,12 @@ bibliography: references.bib
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 set.seed(42)
 ```
+
+A few takeaways from this chapter:
+
+-   Underfitting and overfitting are both bad. The best first-stage models are regularized (as @gelman2018 would advocate, regularized prediction and poststratification).
+
+-   Regularized ensemble models [@ornstein2020] with unit-level predictors consistently produce the best estimates.
 
 # Running Example
 
@@ -33,9 +39,8 @@ The data is available [here](https://dataverse.harvard.edu/dataset.xhtml?persist
 
 ```{r truth}
 truth <- ces %>% 
-  filter(!is.na(assault_rifle_ban)) %>% 
   group_by(abb) %>% 
-  summarize(truth = sum(assault_rifle_ban == 'Support') / n())
+  summarize(truth = mean(defund_police))
 
 # plot
 truth %>% 
@@ -46,7 +51,9 @@ truth %>%
   theme_minimal()
 ```
 
-Note what I mean by the "truth" here is the true percentage of CES respondents who supported the assault rifle ban. That's our target. This overstates the percent of the total population that support such a ban, since the CES sample is not a simple random sample.
+Note what I mean by the "truth" here is the true percentage of CES respondents who support reducing police budgets. That's our target. This likely overstates the percent of the total population that support such a policy, since the CES is not a simple random sample.[^2]
+
+[^2]: The percent of respondents who report voting for Joe Biden in 2020, for example, is TODO, TODO greater than his actual vote share.
 
 ## Draw a Sample
 
@@ -54,49 +61,53 @@ Step 1: draw a sample.
 
 ```{r sample}
 sample_data <- ces %>% 
-  slice_sample(n = 500)
+  slice_sample(n = 1000)
 ```
 
 ```{r disaggregate}
 sample_summary <- sample_data %>% 
-  filter(!is.na(assault_rifle_ban)) %>% 
   group_by(abb) %>% 
-  summarize(pct_support = sum(assault_rifle_ban == 'Support') / n(),
+  summarize(estimate = mean(defund_police),
             num = n())
 
 sample_summary
 ```
 
-For readers who are less familiar with American politics, rest assured that this is an unrepresentative draw from the state of Iowa. So simply disaggregating and taking sample means will not yield good estimates, as you can see by comparing the percent of respondents from the sample who supported the ban against the percent of CES respondents.
+One approach: disaggregation.
+
+Notice, for example, that our random sample of 1,000 includes only four respondents from Arkansas, of whom zero support reducing police budgets. So simply disaggregating and taking sample means will not yield good estimates, as you can see by comparing the percent of respondents from the sample who supported the ban against the percent of CES respondents.
 
 ```{r compare-disaggregation, fig.cap='Esimates from disaggregated sample data'}
-sample_summary %>% 
-  left_join(truth, by = 'abb') %>% 
-  ggplot(mapping = aes(x=pct_support,
+compare_to_truth <- function(estimates, truth){
+  
+  d <- left_join(estimates, truth, by = 'abb')
+  
+  ggplot(data = d,
+         mapping = aes(x=estimate,
                        y=truth,
                        label=abb)) +
   geom_point(alpha = 0.5) +
   geom_text_repel() +
   theme_minimal() +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  labs(x = 'Sample Average',
+  labs(x = 'Estimate',
        y = 'Truth',
-       title = 'Disaggregated Estimates')
+       caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2))) #+
+   # scale_x_continuous(limits = c(0,1)) +
+   # scale_y_continuous(limits = c(0,1))
+}
+
+compare_to_truth(sample_summary, truth)
 ```
 
 ## Multilevel Regression
 
 ```{r model}
-
-# TODO: multilevel model; show how partial pooling fixes a bunch here.
-
 # logistic model
-model <- glm(as.numeric(assault_rifle_ban == 'Support') ~
+model <- glm(defund_police ~
               gender + educ + race + age,
             data = sample_data,
             family = 'binomial')
-
-summary(model)
 ```
 
 ## Poststratification
@@ -126,25 +137,10 @@ poststratified_estimates <- psframe %>%
 Merge and compare:
 
 ```{r compare-to-truth, fig.cap='Underfit MRP estimates from complete pooling model'}
-d <- left_join(poststratified_estimates, 
-               truth, 
-               by = 'abb')
-
-library(ggrepel)
-
-ggplot(data = d, 
-       mapping = aes(x = estimate, 
-                     y = truth,
-                     label = abb)) +
-  geom_point(alpha = 0.7) +
-  geom_text_repel() +
-  theme_minimal() +
-  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  coord_equal() +
-  labs(caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2)))
+compare_to_truth(poststratified_estimates, truth)
 ```
 
-This highlights one of the dangers of producing MRP estimates from an underspecified model. When the first-stage model is underfit, poststratified estimates tend to collapse towards the global mean [CITATION NEEDED + BETTER TERMINOLOGY].
+This highlights one of the dangers of producing MRP estimates from an underspecified model. When the first-stage model is underfit, poststratified estimates tend to overshrink towards the global mean.
 
 This compression means we should be wary of MRP studies that show policy outcomes "leapfrogging" estimated public opinion [@simonovits2020]. It could be that policymakers are more extreme than their constituents, or that MRP produces estimates of constituency preferences that are too moderate.
 
@@ -155,7 +151,7 @@ To illustrate the other extreme, let's estimate a model with a separate intercep
 ```{r, fig.cap='Overfit MRP estimates from fixed effects model'}
 
 # fit the model
-model2 <- glm(as.numeric(assault_rifle_ban == 'Support') ~
+model2 <- glm(defund_police ~
               gender + educ + race + age +
                 abb,
             data = sample_data,
@@ -171,20 +167,7 @@ poststratified_estimates <- psframe %>%
   summarize(estimate = weighted.mean(predicted_probability, n))
 
 
-d <- left_join(poststratified_estimates, 
-               truth, 
-               by = 'abb')
-
-ggplot(data = d, 
-       mapping = aes(x = estimate, 
-                     y = truth,
-                     label = abb)) +
-  geom_point(alpha = 0.7) +
-  geom_text_repel() +
-  theme_minimal() +
-  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  coord_equal() +
-  labs(caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2)))
+compare_to_truth(poststratified_estimates, truth)
 ```
 
 Compare this to Figure 1 -- these estimates are similarly overfit. Iowa is predicted to have roughly 100% support due to an idiosyncratic sample, while Maryland has the opposite problem.
@@ -196,7 +179,7 @@ Compare this to Figure 1 -- these estimates are similarly overfit. Iowa is predi
 ```{r, fig.cap='MRP estimates from model with partial pooling'}
 library(lme4)
 
-model3 <- glmer(as.numeric(assault_rifle_ban == 'Support') ~  gender + educ + race + age +
+model3 <- glmer(defund_police ~  gender + educ + race + age +
                 (1|abb), 
                  data = sample_data,
                  family = 'binomial')
@@ -211,33 +194,25 @@ poststratified_estimates <- psframe %>%
   summarize(estimate = weighted.mean(predicted_probability, n))
 
 
-d <- left_join(poststratified_estimates, 
-               truth, 
-               by = 'abb')
-
-ggplot(data = d, 
-       mapping = aes(x = estimate, 
-                     y = truth,
-                     label = abb)) +
-  geom_point(alpha = 0.7) +
-  geom_text_repel() +
-  theme_minimal() +
-  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  coord_equal() +
-  labs(caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2)))
+compare_to_truth(poststratified_estimates, truth)
 ```
 
 TODO: Well that's not the approach we should take, then. Partial pooling isn't magic. It just undoes the damage that fixed effects does. The magic is in good geographic predictors.
 
+## The Importance of Group-Level Covariates
+
+-   The Democratic presidential two party vote share in 2020
+
+-   The percent of the state's residents that live in urban areas
+
+-   The state's 2020 homicide rate (homicides per 10,000 residents)
+
+-   
+
 ## Stacking
 
 ```{r, fig.cap='Estimates from an ensemble first-stage model'}
-
-sample_data <- mutate(sample_data,
-                      Y = as.numeric(assault_rifle_ban == 'Support'))
-
 library(SuperLearner)
-
 
 # fit Super Learner
 SL.library <- c("SL.ranger", "SL.gam", "SL.xgboost", "SL.glm")
@@ -248,7 +223,7 @@ X <- sample_data %>%
 newX <- psframe %>% 
   select(gender, educ, race, age, abb)
 
-sl.out <- SuperLearner(Y = sample_data$Y,
+sl.out <- SuperLearner(Y = sample_data$defund_police,
                        X = X, 
                        newX = newX, 
                        family = binomial(),
@@ -265,38 +240,41 @@ poststratified_estimates <- psframe %>%
   group_by(abb) %>% 
   summarize(estimate = weighted.mean(predicted_probability, n))
 
-d <- left_join(poststratified_estimates, 
-               truth, 
-               by = 'abb')
-
-ggplot(data = d, 
-       mapping = aes(x = estimate, 
-                     y = truth,
-                     label = abb)) +
-  geom_point(alpha = 0.7) +
-  geom_text_repel() +
-  theme_minimal() +
-  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  coord_equal() +
-  labs(caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2)))
+compare_to_truth(poststratified_estimates, truth)
 ```
 
 And that's just "out-of-the-box"! What if we were more careful about it?\
 
+This reflects the gains that come from modeling "deep interactions" in the predictors of public opinion [@ghitza2013]. If, for example, income better predicts partisanship in some states but not in others [@gelman2007], then a model that captures that moderating effect will produce better poststratified estimates than one that does not. Machine learning techniques like random forest [@breiman2001] are especially useful for detecting and modeling such deep interactions, and stacked regression and poststratification (SRP) tends to outperform MRP in simulations, particularly for training data with large sample size [@ornstein2020].
+
 ## Synthetic Poststratification
 
-Suppose that we did not have access to the entire joint distribution of individual-level covariates. @leemann2017 suggest an extension of Mr. P, which they (delightfully) dub Multilevel Regression and Synthetic Poststratification (Mrs. P). Lacking the full joint distribution of covariates for poststratification, one can instead create a *synthetic* poststratification frame by assuming that additional covariates are statistically independent of one another. So long as your first stage model is linear-additive, this approach yields the same predictions as if you knew the true joint distribution![^2] And even if the first-stage model is not linear-additive, simulations suggest that the improved performance from additional predictors tends to overcome the error introduced by synthetic poststratification.
+Suppose that we did not have access to the entire joint distribution of individual-level covariates. @leemann2017 suggest an extension of Mr. P, which they (delightfully) dub Multilevel Regression and Synthetic Poststratification (Mrs. P). Lacking the full joint distribution of covariates for poststratification, one can instead create a *synthetic* poststratification frame by assuming that additional covariates are statistically independent of one another. So long as your first stage model is linear-additive, this approach yields the same predictions as if you knew the true joint distribution![^3] And even if the first-stage model is not linear-additive, simulations suggest that the improved performance from additional predictors tends to overcome the error introduced by synthetic poststratification.
 
-[^2]: See @ornstein2020 appendix A for mathematical proof.
+[^3]: See @ornstein2020 appendix A for mathematical proof.
 
 To create a synthetic poststratification frame, convert frequencies to probabilities and multiply. For example, suppose we only had the joint distribution for gender, race, and age, and wanted to create a synthetic poststratification including education.
+
+Add:
+
+-   How important is religion to the respondent?
+
+-   Whether the respondent lives in an urban, rural, or suburban area
+
+-   Whether the respondent or a member of the respondent's family is a military veteran
+
+-   Whether the respondent owns or rents their home
+
+-   Is the respondent the parent or guardian of a child under the age of 18?
+
+These variables may be useful predictors of opinion about police policy and the first-stage model could be improved by including them. But there is no dataset (that I know of) that would allow us to compute a state-level joint probability distribution over every one of them. Instead, we would typically only know the marginal distributions of each covariate (e.g. the percent of a state's residents that are military households, or the percent that live in urban areas). (TODO: Flip this up top to motivate synthetic poststratification)
 
 ```{r synthetic-psframe}
 # poststratification frame with 3 variables
 psframe3 <- ces %>% 
   count(abb, gender, race, age) %>% 
   group_by(abb) %>% 
-  mutate(prob1 = n / sum(n))
+  mutate(prob = n / sum(n))
 
 head(psframe3)
 
@@ -310,7 +288,7 @@ head(psframe_educ)
 
 synthetic_psframe <- left_join(psframe3, psframe_educ,
                                by = 'abb') %>% 
-  mutate(prob = prob1 * prob2)
+  mutate(prob = prob * prob2)
 
 head(synthetic_psframe)
 ```
@@ -319,11 +297,9 @@ The `SRP` package contains a convenience function for this operation (see the [v
 
 Then poststratify as normal.
 
-TODO: Functions instead of comments.
-
 ```{r}
 # make predictions
-synthetic_psframe$predicted_probability <-  predict(model2, synthetic_psframe, type = 'response')
+synthetic_psframe$predicted_probability <- predict(model3, synthetic_psframe, type = 'response')
 
 # poststratify
 poststratified_estimates <- synthetic_psframe %>% 
@@ -331,26 +307,78 @@ poststratified_estimates <- synthetic_psframe %>%
   summarize(estimate = weighted.mean(predicted_probability, prob))
 
 
-d <- left_join(poststratified_estimates, 
-               truth, 
-               by = 'abb')
-
-ggplot(data = d, 
-       mapping = aes(x = estimate, 
-                     y = truth,
-                     label = abb)) +
-  geom_point(alpha = 0.7) +
-  geom_text_repel() +
-  theme_minimal() +
-  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  coord_equal() +
-  labs(caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2)))
+compare_to_truth(poststratified_estimates, truth)
 ```
 
 Note that the performance is slightly worse than when we knew the true joint distribution. But is it worse than omitting education entirely?
 
-```{r}
+```{r, fig.cap='Poststratified estimates, omitting education'}
 
+model4 <- glmer(defund_police ~  gender + race + age +
+                (1|abb), 
+                 data = sample_data,
+                 family = 'binomial')
+
+
+# make predictions
+psframe3$predicted_probability <- predict(model4, psframe3, type = 'response')
+
+# poststratify
+poststratified_estimates <- psframe3 %>% 
+  group_by(abb) %>% 
+  summarize(estimate = weighted.mean(predicted_probability, prob))
+
+
+compare_to_truth(poststratified_estimates, truth)
+```
+
+## Best Performing
+
+Supposing we had access to the true joint distribution and fit an ensemble first-stage model...
+
+```{r}
+psframe <- ces %>% 
+  count(abb, gender, race, age, educ,
+        pew_religimp, homeowner, urban, 
+        parent, military_household,
+        biden_vote_share, homicide_rate)
+
+library(SuperLearner)
+
+# fit Super Learner
+SL.library <- c("SL.ranger", "SL.glm")
+
+X <- sample_data %>% 
+  select(abb, gender, race, age, educ,
+        pew_religimp, homeowner, urban, 
+        parent, military_household,
+        biden_vote_share, homicide_rate)
+
+newX <- psframe %>% 
+  select(abb, gender, race, age, educ,
+        pew_religimp, homeowner, urban, 
+        parent, military_household,
+        biden_vote_share, homicide_rate)
+
+sl.out <- SuperLearner(Y = sample_data$defund_police,
+                       X = X, 
+                       newX = newX, 
+                       family = binomial(),
+                       SL.library = SL.library, 
+                       verbose = FALSE)
+#sl.out$SL.predict
+sl.out$coef
+
+# make predictions
+psframe <- psframe %>% 
+  mutate(predicted_probability = sl.out$SL.predict)
+
+# poststratify
+poststratified_estimates <- psframe %>% 
+  group_by(abb) %>% 
+  summarize(estimate = weighted.mean(predicted_probability, n))
+
+compare_to_truth(poststratified_estimates, truth)
 ```
 
 # References

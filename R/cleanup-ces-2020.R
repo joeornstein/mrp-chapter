@@ -31,36 +31,21 @@ ces <- ces_raw %>%
                           race == 4 ~ 'Asian',
                           TRUE ~ 'Other'),
          age = 2020 - birthyr, 
-         national_economy = case_when(cc20_302 == 1 ~ 'Gotten much better',
-                                      cc20_302 == 2 ~ 'Gotten somewhat better',
-                                      cc20_302 == 3 ~ 'Stayed about the same',
-                                      cc20_302 == 4 ~ 'Gotten somewhat worse',
-                                      cc20_302 == 5 ~ 'Gotten much worse',
-                                      cc20_302 == 6 ~ 'Not sure'),
-         someone_diagnosed_with_covid = if_else(cc20_309a_5 == 2, 'Yes', 'No'),
-         trump_approval = case_when(cc20_320a == 1 ~ 'Strongly approve',
-                                    cc20_320a == 2 ~ 'Somewhat approve',
-                                    cc20_320a == 3 ~ 'Somewhat disapprove',
-                                    cc20_320a == 4 ~ 'Strongly disapprove',
-                                    cc20_320a == 5 ~ 'Not sure'),
-         lost_work_during_covid = if_else(cc20_309c_1 == 1 |
-                                            cc20_309c_2 == 1 |
-                                            cc20_309c_3 == 1 |
-                                            cc20_309c_4 == 1 |
-                                            cc20_309c_5 == 1 |
-                                            cc20_309c_6 == 1, 
-                                          'Yes', 'No'),
-         social_media_24h = if_else(cc20_300_1 == 1, 'Yes', 'No'),
-         tv_news_24h = if_else(cc20_300_2 == 1, 'Yes', 'No'),
-         newspaper_24h = if_else(cc20_300_3 == 1, 'Yes', 'No'),
-         radio_news_24h = if_else(cc20_300_4 == 1, 'Yes', 'No'),
-         assault_rifle_ban = if_else(cc20_330b == 1, 'Support', 'Oppose'),
-         increase_border_patrols = if_else(cc20_331b == 1, 'Support', 'Oppose'),
-         china_tariffs = if_else(cc20_338a == 1, 'Support', 'Oppose'),
          pew_religimp = case_when(pew_religimp == 1 ~ 'Very important',
                                   pew_religimp == 2 ~ 'Somewhat important',
                                   pew_religimp == 3 ~ 'Not too important',
-                                  pew_religimp == 4 ~ 'Not at all important'))
+                                  pew_religimp == 4 ~ 'Not at all important'),
+         homeowner = as.numeric(ownhome == 1),
+         urban = case_when(urbancity == 1 ~ 'Urban',
+                           urbancity %in% c(2,3,5) ~ 'Suburban',
+                           urbancity == 4 ~ 'Rural'),
+         parent = as.numeric(child18 == 1),
+         # there are about 161 respondents that don't check anything in the military household sequence. Better to code them as not military households.
+         military_household = as.numeric(milstat_1 == 1 |
+                                           milstat_2 == 1 |
+                                           milstat_3 == 1 |
+                                           milstat_4 == 1),
+         defund_police = 2 - cc20_334d)
 
 # inputstate is a fips code. merge with maps::state.fips to get state names
 state_names <- maps::state.fips %>% 
@@ -76,25 +61,33 @@ state_names <- maps::state.fips %>%
 ces <- ces %>% 
   mutate(fips = inputstate) %>% 
   left_join(state_names, by = 'fips') %>% 
-  # select the variables you want
-  select(caseid, gender, educ, race, age, abb, national_economy,
-         someone_diagnosed_with_covid, lost_work_during_covid,
-         trump_approval,
-         social_media_24h, tv_news_24h, newspaper_24h, radio_news_24h,
-         assault_rifle_ban, increase_border_patrols, china_tariffs,
-         pew_religimp) %>% 
-  # order the factor variables
-  mutate(national_economy = factor(national_economy,
-                                   levels = c('Not sure', 'Gotten much worse',
-                                              'Gotten somewhat worse', 'Stayed about the same',
-                                              'Gotten somewhat better', 'Gotten much better')),
-         trump_approval = factor(trump_approval,
-                                 levels = c('Strongly disapprove', 'Somewhat disapprove',
-                                            'Not sure', 'Somewhat approve', 'Strongly approve')),
-         educ = factor(educ,
-                       levels = c('No HS', 'High school graduate',
-                                  'Some college', '2-year', '4-year',
-                                  'Post-grad')))
+  # select the variables we want to keep in the
+  # cleaned up dataset
+  select(caseid, gender, educ, race, age, abb,
+         pew_religimp, homeowner, urban, parent, 
+         military_household, defund_police)
+
+# merge with state-level covariates
+homicide_rates <- read_csv('data/raw/cdc-homicide-rates.csv') %>% 
+  filter(YEAR == 2019) %>% 
+  select(abb = STATE,
+         homicide_rate = RATE)
+
+election2020 <- read_csv('data/raw/1976-2020-president.csv') %>% 
+  filter(year == 2020) %>% 
+  filter(party_simplified %in% c('DEMOCRAT', 'REPUBLICAN')) %>% 
+  select(abb = state_po,
+         party_simplified,
+         candidatevotes) %>% 
+  pivot_wider(id_cols = abb,
+              names_from = party_simplified,
+              values_from = candidatevotes) %>% 
+  mutate(biden_vote_share = DEMOCRAT / (DEMOCRAT + REPUBLICAN) * 100) %>% 
+  select(abb, biden_vote_share)
+
+ces <- ces %>% 
+  left_join(homicide_rates, by = 'abb') %>% 
+  left_join(election2020, by = 'abb')
 
 # keep only the states with at least 500 respondents
 states_to_keep <- ces %>% 
@@ -103,6 +96,9 @@ states_to_keep <- ces %>%
   pull(abb)
 
 ces <- filter(ces, abb %in% states_to_keep)
+
+# drop 198 observations with missing values
+ces <- na.omit(ces)
 
 # write cleaned dataset to file
 save(ces, file = 'data/CES-2020.RData')
