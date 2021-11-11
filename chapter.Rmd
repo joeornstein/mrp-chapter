@@ -3,9 +3,7 @@ title: "Multilevel Regression And Poststratification (A Primer)"
 author:
   - Joseph T. Ornstein^[Department of Political Science, University of Georgia]
 # date: "November 15, 2021"
-output:
-  pdf_document:
-    number_sections: yes
+output: pdf_document
 bibliography: references.bib
 ---
 
@@ -26,11 +24,9 @@ As we will see, the accuracy of our poststratified estimates depends critically 
 
 # Running Example
 
-To demonstrate how MRP works, we'll consider an example where we know the true population-level estimands, and can explore how various refinements to the method can improve predictive accuracy. This approach mirrors @buttice2013, who use disaggregated ressponses from large-scale US survey of voters [@schaffner2021] as the target.[^1]
+To demonstrate how MRP works, we'll consider an example where we know the true population-level estimands, and can explore how various refinements to the method can improve predictive accuracy. This approach mirrors @buttice2013, who use disaggregated ressponses from large-scale US survey of voters [@schaffner2021] as the target.[^1] The Cooperative Election Study data is available [here](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi%3A10.7910/DVN/E9N6PH), and we'll be using a tidied version of the dataset created by the `R/cleanup-ces-2020.R` script.
 
 [^1]: Throughout, I will use R functions from the "tidyverse" to make the code more human-readable. All code will be available for download on a public repository.
-
-The Cooperative Election Study data is available [here](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi%3A10.7910/DVN/E9N6PH), and we'll be using a tidied version of the dataset created by the `R/cleanup-ces-2020.R` script. This tidied version of the data only includes the `r length(unique(ces$abb))` states with at least 500 respondents.
 
 ```{r load-ces}
 library(tidyverse)
@@ -39,13 +35,15 @@ library(ggrepel)
 load('data/CES-2020.RData')
 ```
 
+This tidied version of the data only includes the `r length(unique(ces$abb))` states with at least 500 respondents.
+
 ## The Truth
 
 First, let's plot the percent of CES respondents who supported "defunding" the police[^2] by state.
 
 [^2]: Obviously that phrase means different things to different people. In this case, we'll stick with the CES proposed policy of reducing police staffing by 10% and diverting those expenditures to other priorities.
 
-```{r truth}
+```{r truth, fig.cap='The percent of CES respondents in each state who support reducing police budgets. These are our target estimands.'}
 truth <- ces %>% 
   group_by(abb) %>% 
   summarize(truth = mean(defund_police))
@@ -56,7 +54,7 @@ truth %>%
   mutate(abb = fct_reorder(abb, truth)) %>% 
   ggplot(mapping = aes(x=truth, y=abb)) +
   geom_point(alpha = 0.7) +
-  labs(x = 'Percent Who Support Policy', y = 'State')
+  labs(x = 'Percent Who Support Policy', y = 'State') +
   theme_minimal()
 ```
 
@@ -80,7 +78,7 @@ sample_summary <- sample_data %>%
 sample_summary
 ```
 
-In a with only 1,000 respondents, there are several states with very few (or no) respondents. Notice, for example, that this sample includes only four respondents from Arkansas, of whom zero support reducing police budgets. So simply disaggregating and taking sample means will not yield good estimates, as you can see by comparing the sample means against the truth.
+In a sample with only 1,000 respondents, there are several states with very few (or no) respondents. Notice, for example, that this sample includes only four respondents from Arkansas, of whom zero support reducing police budgets. So simply disaggregating and taking sample means is unlikely to yield good estimates, as you can see by comparing those sample means against the truth.
 
 ```{r compare-disaggregation, fig.cap='Esimates from disaggregated sample data'}
 # a function to plot the state-level estimates against the truth
@@ -345,7 +343,7 @@ compare_to_truth(poststratified_estimates, truth)
 
 Supposing we had access to the true joint distribution and fit an ensemble first-stage model...
 
-```{r}
+```{r, fig.cap='The best performing estimates, using an ensemble first stage model, group-level predictors, and synthetic poststratification.'}
 psframe <- ces %>% 
   count(abb, gender, race, age, educ,
         pew_religimp, homeowner, urban, 
