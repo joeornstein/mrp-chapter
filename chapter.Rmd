@@ -14,17 +14,25 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 set.seed(42)
 ```
 
+Public opinion surveys are often unrepresentative in some way. Perhaps their respondents are recruited in a non-random fashion [@wang2015], or non-response bias skews an otherwise random sample. Or perhaps the data is representative of some larger population (i.e. a country-level random sample), but contains too few observations to make inferences about a subgroup of interest. Policy research at the state and local level require measures of public opinion at those levels. But even the largest US public opinion surveys do not have enough respondents to be disaggregated to several dozen states or thousands of municipalities. Conclusions drawn from low frequency observations -- even in a large sample survey -- can be wildly misleading [@ansolabehere2015].
+
+This presents a challenge for public opinion research: how to take unrepresentative survey data and adjust it so that it is useful for our particular research question. In this chapter, I will demonstrate a method called **multilevel regression and poststratification** (MRP). In this approach, the researcher first constructs a model of public opinion (multilevel regression) and then reweights the model's predictions based on the observed characteristics of the population of interest (poststratification). In the sections to follow, I will describe this approach in detail, and will accompany this explanation with code in the `R` statistical language.
+
+MRP was first introduced by @gelman1997, and the subsequent decades have seen a number of refinements ... Xbox paper
+
+Things MRP has done for political science:
+
 A few takeaways from this chapter:
 
 -   Underfitting and overfitting are both bad. The best first-stage models are regularized (as @gelman2018 would advocate, regularized prediction and poststratification).
 
--   Regularized ensemble models [@ornstein2020] with unit-level predictors consistently produce the best estimates.
+-   Regularized ensemble models [@ornstein2020] with unit-level predictors tend to produce the best estimates, especially when trained on large datasets.
 
 # Running Example
 
-To demonstrate how MRP works, we'll consider an example where we know the "real" answer, and can explore how various refinements to the model improve predictive accuracy. The approach we'll use mirrors that in @buttice2013, taking responses from a large scale US survey of voters (schaffner ref).[^1]
+To demonstrate how MRP works, we'll consider an example where we know the "real" answer, and can explore how various refinements to the model improve predictive accuracy. The approach we'll use mirrors that in @buttice2013, taking responses from a large scale US survey of voters [@schaffner2021].[^1]
 
-[^1]: Throughout, I will use R functions from the "tidyverse" to make the code more human-readable.
+[^1]: Throughout, I will use R functions from the "tidyverse" to make the code more human-readable. All code will be available for download on a public repository.
 
 ```{r load-ces}
 library(tidyverse)
