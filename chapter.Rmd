@@ -14,19 +14,15 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 set.seed(42)
 ```
 
-Public opinion surveys are often unrepresentative in some way. Perhaps their respondents are recruited in a non-random fashion [@wang2015], or non-response bias skews an otherwise random sample. Or perhaps the data is representative of some larger population (i.e. a country-level random sample), but contains too few observations to make inferences about a subgroup of interest. Policy research at the state and local level require measures of public opinion at those levels. But even the largest US public opinion surveys do not have enough respondents to be disaggregated to several dozen states or thousands of municipalities. Conclusions drawn from low frequency observations -- even in a large sample survey -- can be wildly misleading [@ansolabehere2015].
+Often we'd like to estimate public opinion on some policy issue, but our surveys are unrepresentative in an important way. Perhaps their respondents come from a convenience sample [@wang2015], or non-response bias skews an otherwise random sample. Or perhaps the data is representative of some larger population (i.e. a country-level random sample), but contains too few observations to make inferences about a subgroup of interest. Even the largest US public opinion surveys do not have enough respondents to make reliable inferences about lower-level political entities like states or municipalities. Conclusions drawn from low frequency observations -- even in a large sample survey -- can be wildly misleading [@ansolabehere2015].
 
-This presents a challenge for public opinion research: how to take unrepresentative survey data and adjust it so that it is useful for our particular research question. In this chapter, I will demonstrate a method called **multilevel regression and poststratification** (MRP). In this approach, the researcher first constructs a model of public opinion (multilevel regression) and then reweights the model's predictions based on the observed characteristics of the population of interest (poststratification). In the sections to follow, I will describe this approach in detail, and will accompany this explanation with code in the `R` statistical language.
+This presents a challenge for public opinion research: how to take unrepresentative survey data and adjust it so that it is useful for our particular research question. In this chapter, I will demonstrate a method called **multilevel regression and poststratification** (MRP). Using this approach, the researcher first constructs a model of public opinion (multilevel regression) and then reweights the model's predictions based on the observed characteristics of the population of interest (poststratification). In the sections to follow, I will describe this approach in detail, and will accompany this explanation with code in the `R` statistical language.
 
-MRP was first introduced by @gelman1997, and the subsequent decades have seen a number of refinements ... Xbox paper
+MRP was first introduced by @gelman1997, and the subsequent decades it has helped address a diverse set of research questions in political science. These range from generating election forecasts using unrepresentative survey data [@wang2015] to assessing the responsiveness of state [@lax2012] and local policymakers [@tausanovitch2014] to their constituents' policy preferences.
 
-Things MRP has done for political science:
+In the following sections, I will illustrate how MRP can improve estimates of small area public opinion. Our running example will be drawn from the Cooperative Election Survey [@schaffner2021], which includes a question asking respondents whether they support a policy that would "decrease the number of police on the street by 10 percent, and increase funding for other public services." Since police reform is a policy issue on which US local governments have a significant amount of autonomy, it would be interesting to know how opinions on this issue vary from place to place without having to conduct a large set of costly local-level surveys.
 
-A few takeaways from this chapter:
-
--   Underfitting and overfitting are both bad. The best first-stage models are regularized (as @gelman2018 would advocate, regularized prediction and poststratification).
-
--   Regularized ensemble models [@ornstein2020] with unit-level predictors tend to produce the best estimates, especially when trained on large datasets.
+As we will see, the accuracy of our poststratified estimates depends critically on whether the first-stage model makes good predictions. The best first-stage models are *regularized* [@gelman2018] to avoid both over- and under-fitting to the survey data. Regularized ensemble models [@ornstein2020] with group-level predictors tend to produce the best estimates, especially when trained on large datasets.
 
 # Running Example
 
@@ -45,6 +41,10 @@ The data is available [here](https://dataverse.harvard.edu/dataset.xhtml?persist
 
 ## The Truth
 
+First, let's plot the percent of CES respondents who supported "defunding the police"[^2] by state.
+
+[^2]: Obviously that phrase means different things to different people. In this case, we'll stick with the CES proposed policy of reducing police staffing by 10% and diverting those expenditures to other priorities.
+
 ```{r truth}
 truth <- ces %>% 
   group_by(abb) %>% 
@@ -56,16 +56,15 @@ truth %>%
   mutate(abb = fct_reorder(abb, truth)) %>% 
   ggplot(mapping = aes(x=truth, y=abb)) +
   geom_point(alpha = 0.7) +
+  labs(x = 'Percent Who Support Policy', y = 'State')
   theme_minimal()
 ```
 
-Note what I mean by the "truth" here is the true percentage of CES respondents who support reducing police budgets. That's our target. This likely overstates the percent of the total population that support such a policy, since the CES is not a simple random sample.[^2]
-
-[^2]: The percent of respondents who report voting for Joe Biden in 2020, for example, is TODO, TODO greater than his actual vote share.
+Note what I mean by the "truth" here is the true percentage of CES respondents who support reducing police budgets. This likely overstates the percent of the total population that support such a policy, since the CES is not a simple random sample.
 
 ## Draw a Sample
 
-Step 1: draw a sample.
+Now suppose that we did not have access to the entire CES dataset, but only to a random sample of 1,000 respondents. How good of a job can we do at estimating those state-level means?
 
 ```{r sample}
 sample_data <- ces %>% 
@@ -81,11 +80,10 @@ sample_summary <- sample_data %>%
 sample_summary
 ```
 
-One approach: disaggregation.
-
-Notice, for example, that our random sample of 1,000 includes only four respondents from Arkansas, of whom zero support reducing police budgets. So simply disaggregating and taking sample means will not yield good estimates, as you can see by comparing the percent of respondents from the sample who supported the ban against the percent of CES respondents.
+In a small sample drawn from 33 states, there are several states with very few (or no) respondents. Notice, for example, that our random sample of 1,000 includes only four respondents from Arkansas, of whom zero support reducing police budgets. So simply disaggregating and taking sample means will not yield good estimates, as you can see by comparing the sample means against the truth.
 
 ```{r compare-disaggregation, fig.cap='Esimates from disaggregated sample data'}
+# a function to plot the state-level estimates against the truth
 compare_to_truth <- function(estimates, truth){
   
   d <- left_join(estimates, truth, by = 'abb')
@@ -100,15 +98,15 @@ compare_to_truth <- function(estimates, truth){
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
   labs(x = 'Estimate',
        y = 'Truth',
-       caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2))) #+
-   # scale_x_continuous(limits = c(0,1)) +
-   # scale_y_continuous(limits = c(0,1))
+       caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2)))
 }
 
 compare_to_truth(sample_summary, truth)
 ```
 
 ## Multilevel Regression
+
+The trick, in essence, is that your estimate for Arkansas borrows information from similar respondents in other places.
 
 ```{r model}
 # logistic model
