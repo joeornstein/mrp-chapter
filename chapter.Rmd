@@ -223,9 +223,14 @@ TODO: Well that's not the approach we should take, then. Partial pooling isn't m
 
 -   
 
-## Stacking
+## Stacked Regression and Poststratification (SRP)
+
+Ultimately, the accuracy of one's poststratified estimates depends on the out-of-sample predictive performance of the first-stage model. As we've seen above, the challenge is to thread the needle between overfitting and underfitting. Several recent papers [@bisbee2019, @ornstein2020, @broniecki2022] have shown that models from machine learning can help automate this process.
+
+In the code below, I'll demonstrate how an *ensemble* of models -- using the same set of predictors but different methods for combining them into predictions -- can yield superior performance to a single multilevel regression model. In particular, I will fit a "Super Learner" ensemble [@vanderlaan2007], which generates a weighted average prediction from multiple models, where the weights are based on cross-validated prediction performance. The literature on ensemble models is vast, but for good entry points I recommend @breiman1996, @breiman2001, and @montgomery2012.
 
 ```{r, fig.cap='Estimates from an ensemble first-stage model'}
+
 library(SuperLearner)
 
 # fit Super Learner
