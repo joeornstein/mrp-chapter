@@ -229,25 +229,22 @@ TODO: Well that's not the approach we should take, then. Partial pooling isn't m
 library(SuperLearner)
 
 # fit Super Learner
-SL.library <- c("SL.ranger", "SL.gam", "SL.xgboost", "SL.glm")
+SL.library <- c("SL.ranger", "SL.xgboost", "SL.glm")
 
-X <- sample_data %>% 
-  select(gender, educ, race, age, abb)
+X <- model.matrix(~gender + educ + race+ age + abb, sample_data)
 
-newX <- psframe %>% 
-  select(gender, educ, race, age, abb)
+newX <- model.matrix(~gender + educ + race+ age + abb, psframe)
 
-sl.out <- SuperLearner(Y = sample_data$defund_police,
+sl <- SuperLearner(Y = sample_data$defund_police,
                        X = X, 
                        newX = newX, 
                        family = binomial(),
-                       SL.library = SL.library, verbose = FALSE)
-#sl.out$SL.predict
-sl.out$coef
+                       SL.library = SL.library, verbose = TRUE)
+#sl$SL.predict
+sl$coef
 
 # make predictions
-psframe <- psframe %>% 
-  mutate(predicted_probability = sl.out$SL.predict)
+psframe$predicted_probability <- sl$SL.predict
 
 # poststratify
 poststratified_estimates <- psframe %>% 
@@ -374,18 +371,17 @@ newX <- psframe %>%
         parent, military_household,
         biden_vote_share, homicide_rate)
 
-sl.out <- SuperLearner(Y = sample_data$defund_police,
+sl <- SuperLearner(Y = sample_data$defund_police,
                        X = X, 
                        newX = newX, 
                        family = binomial(),
                        SL.library = SL.library, 
                        verbose = FALSE)
-#sl.out$SL.predict
-sl.out$coef
+#sl$SL.predict
+sl$coef
 
 # make predictions
-psframe <- psframe %>% 
-  mutate(predicted_probability = sl.out$SL.predict)
+psframe$predicted_probability <- sl$SL.predict
 
 # poststratify
 poststratified_estimates <- psframe %>% 
