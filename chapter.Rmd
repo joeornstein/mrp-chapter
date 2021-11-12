@@ -106,7 +106,7 @@ This is clearly a poor estimate of state-level public opinion. The four responde
 
 MRP proceeds in two steps.
 
-## Step 1: Multilevel Regression
+## Step 1: Fit a Model
 
 First, we fit a model of our outcome, using observed characteristics of the survey respondents as predictors. As a first pass, let's fit a simple logistic model of including only four demographic predictors: gender, education, race, and age.
 
@@ -117,7 +117,9 @@ model <- glm(defund_police ~
             family = 'binomial')
 ```
 
-## Step 2: Poststratification
+## Step 2: Construct the Poststratification Frame
+
+The poststratification stage requires the researcher to know (or estimate) the joint frequency distribution of predictor variables. This information is stored in a "poststratification frame", a matrix where each row is a unique combination of characteristics, along with the frequency of that combination. Often, one can construct these frequency distributions from Census micro-data [@lax2009]. For our example, I will compute them directly from the CES.
 
 ```{r psframe}
 psframe <- ces %>% 
@@ -126,14 +128,15 @@ psframe <- ces %>%
 head(psframe)
 ```
 
-Append predicted probabilities to the poststratification frame.
+## Step 3: Predict and Poststratify
+
+With the model and poststratification frame in hand, the final step is to generate frequency-weighted predictions of public opinion. For each cell in the poststratification frame, append the model's predicted probability of supporting police defunding.
 
 ```{r predict}
-psframe <- psframe %>% 
-  mutate(predicted_probability = predict(model, psframe, type = 'response'))
+psframe$predicted_probability <- predict(model, psframe, type = 'response')
 ```
 
-Poststratified estimates are the population-weighted predictions
+Then the poststratified estimates are the frequency-weighted means of those predictions.
 
 ```{r poststratify}
 poststratified_estimates <- psframe %>% 
@@ -141,11 +144,15 @@ poststratified_estimates <- psframe %>%
   summarize(estimate = weighted.mean(predicted_probability, n))
 ```
 
-Merge and compare:
+Let's see how these estimates compare with the known values.
 
 ```{r compare-to-truth, fig.cap='Underfit MRP estimates from complete pooling model'}
 compare_to_truth(poststratified_estimates, truth)
 ```
+
+These estimates, though still imperfect, are much better than the previous estimates from disaggregation. Notice, in particular, that the estimate for Arkansas went from 0% to roughly 39%, reflecting the significant improvement that comes from using more information than the four Arkansans in our sample can provide.
+
+But we can still make improvements.
 
 This highlights one of the dangers of producing MRP estimates from an underspecified model. When the first-stage model is underfit, poststratified estimates tend to overshrink towards the global mean.
 
