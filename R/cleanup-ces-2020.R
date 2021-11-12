@@ -49,12 +49,8 @@ ces <- ces_raw %>%
 
 # inputstate is a fips code. merge with maps::state.fips to get state names
 state_names <- maps::state.fips %>% 
-  select(fips, abb) %>% 
-  # missing alaska and hawaii
-  bind_rows(
-    tibble(
-      fips = c(2, 15),
-      abb = c('AK', 'HI'))) %>% 
+  select(fips, abb, division) %>% 
+  mutate(division = factor(division)) %>% 
   unique %>% 
   arrange(fips)
 
@@ -63,7 +59,7 @@ ces <- ces %>%
   left_join(state_names, by = 'fips') %>% 
   # select the variables we want to keep in the
   # cleaned up dataset
-  select(caseid, gender, educ, race, age, abb,
+  select(caseid, gender, educ, race, age, abb, division,
          pew_religimp, homeowner, urban, parent, 
          military_household, defund_police)
 

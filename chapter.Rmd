@@ -91,7 +91,7 @@ compare_to_truth <- function(estimates, truth){
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
   labs(x = 'Estimate',
        y = 'Truth',
-       caption = paste0('Mean Absolute Error = ', round(mean(abs(d$estimate - d$truth)), 2)))
+       caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2), ', Mean Absolute Error = ', round(mean(abs(d$estimate - d$truth)), 2)))
 }
 
 compare_to_truth(sample_summary, truth)
@@ -182,20 +182,20 @@ These poststratified estimates perform about as well as the disaggregated estima
 
 ## Partial Pooling
 
-A better approach is to estimate a multilevel model (alternatively known as "varying-intercepts" or "random effects" model), including group-level covariates ; adding Biden vote share
+A better approach is to estimate a multilevel model (alternatively known as "varying-intercepts" or "random effects" model), including group-level covariates ; Census division adding Biden vote share
 
 ```{r, fig.cap='MRP estimates from model with partial pooling'}
 library(lme4)
 
 # fit the model
 model3 <- glmer(defund_police ~  gender + educ + race + age +
-                (1|region) + biden_vote_share, 
+                (1 + biden_vote_share | division), 
                  data = sample_data,
                  family = 'binomial')
 
 # construct the poststratification frame
 psframe <- ces %>% 
-  count(abb, gender, educ, race, age, biden_vote_share)
+  count(abb, gender, educ, race, age, division, biden_vote_share)
 
 # make predictions
 psframe$predicted_probability <- predict(model3, psframe, type = 'response')
