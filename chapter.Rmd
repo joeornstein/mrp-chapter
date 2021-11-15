@@ -49,11 +49,12 @@ truth %>%
   mutate(abb = fct_reorder(abb, truth)) %>% 
   ggplot(mapping = aes(x=truth, y=abb)) +
   geom_point(alpha = 0.7) +
-  labs(x = 'Percent Who Support Policy', y = 'State') +
+  labs(x = 'Percent Who Support Police Reform Policy',
+       y = 'State') +
   theme_minimal()
 ```
 
-Note that these values likely overstate the percent of the total population that support such a policy, as self-identified Democrats are over-represented in the CES sample. But they will nevertheless serve as the "true" population-level parameters that we will try to estimate with MRP.
+Oregon is the only state where a majority of respondents supported this policy proposal. And note that Figure 1 likely *overstates* the percent of the total population that support such a policy, since self-identified Democrats are over-represented in the CES sample. But nevertheless, these population-level parameters will be a useful target to estimate with MRP.
 
 ## Draw a Sample
 
@@ -91,7 +92,8 @@ compare_to_truth <- function(estimates, truth){
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
   labs(x = 'Estimate',
        y = 'Truth',
-       caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2), ', Mean Absolute Error = ', round(mean(abs(d$estimate - d$truth)), 3)))
+       caption = paste0('Correlation = ', round(cor(d$estimate, d$truth), 2), 
+                        ', Mean Absolute Error = ', round(mean(abs(d$estimate - d$truth)), 3)))
 }
 
 compare_to_truth(sample_summary, truth)
@@ -103,7 +105,7 @@ The method proceeds in three steps.
 
 ## Step 1: Fit a Model
 
-First, we fit a model of our outcome, using observed characteristics of the survey respondents as predictors. To demonstrate, let's fit a simple logistic model including only four demographic predictors: gender, education, race, and age.
+First, we fit a model of our outcome, using observed characteristics of the survey respondents as predictors. To demonstrate, let's fit a simple logistic regression model including only four demographic predictors: gender, education, race, and age.
 
 ```{r model}
 model <- glm(defund_police ~
@@ -114,7 +116,7 @@ model <- glm(defund_police ~
 
 ## Step 2: Construct the Poststratification Frame
 
-The poststratification stage requires the researcher to know (or estimate) the joint frequency distribution of predictor variables in each state. This information is stored in a "poststratification frame", a matrix where each row is a unique combination of characteristics, along with the observed frequency of that combination. Often, one constructs these frequency distributions from Census micro-data [@lax2009]. For our example, I will compute them directly from the CES.
+The poststratification stage requires the researcher to know (or estimate) the joint frequency distribution of predictor variables in each state. This information is stored in a "poststratification frame", a matrix where each row is a unique combination of characteristics, along with the observed frequency of that combination. Often, one constructs this frequency distribution from Census micro-data [@lax2009]. For our demonstration, I will compute it directly from the CES.
 
 ```{r psframe}
 psframe <- ces %>% 
@@ -139,7 +141,7 @@ poststratified_estimates <- psframe %>%
   summarize(estimate = weighted.mean(predicted_probability, n))
 ```
 
-Let's see how these estimates compare with the known values.
+Let's see how these estimates compare with the known values (Figure 3).
 
 ```{r compare-to-truth, fig.cap='Underfit MRP estimates from complete pooling model'}
 compare_to_truth(poststratified_estimates, truth)
@@ -182,7 +184,7 @@ These poststratified estimates perform about as well as the disaggregated estima
 
 ## Partial Pooling
 
-A better approach is to estimate a multilevel model (alternatively known as "varying-intercepts" or "random effects" model), including group-level covariates. In the model below, I estimate varying intercepts by US Census division, including the state's 2020 Democratic vote share as a covariate. The result is an improvement over Figure 3 (particularly for west coast states like Oregon, Washington, and California).
+A better approach is to estimate a multilevel model (alternatively known as "varying-intercepts" or "random effects" model), including group-level covariates. In the model below, I estimate varying intercepts by US Census division, including the state's 2020 Democratic vote share as a covariate. The result is a marked improvement over Figure 3 (particularly for west coast states like Oregon, Washington, and California).
 
 ```{r, fig.cap='MRP estimates from model with partial pooling'}
 library(lme4)
@@ -210,7 +212,7 @@ compare_to_truth(poststratified_estimates, truth)
 
 ## Sample Size Is Critical
 
-MRP's performance depends heavily on the quality and size of the researcher's survey sample. Up to now, we've been working with a random sample of 1,000 respondents, and though the resulting estimates have outperformed the raw sample means, the performance has been somewhat underwhelming. Suppose instead we had a sample of 5,000 respondents.
+MRP's performance depends heavily on the quality and size of the researcher's survey sample. Up to now, we've been working with a random sample of 1,000 respondents, and though the resulting estimates are better than the raw sample means, their performance has been somewhat underwhelming. Suppose instead we had a sample of 5,000 respondents.
 
 ```{r, fig.cap='Poststratified estimates with a survey sample of 5,000'}
 
@@ -238,13 +240,13 @@ poststratified_estimates <- psframe %>%
 compare_to_truth(poststratified_estimates, truth)
 ```
 
-Now MRP can really shine, because it
+Now MRP really shines. With more observations, the first-stage model can better predict opinions of out-of-sample respondents, which dramatically improves the poststratified estimates.
 
 ## Stacked Regression and Poststratification (SRP)
 
-Ultimately, the accuracy of one's poststratified estimates depends on the out-of-sample predictive performance of the first-stage model. As we've seen above, the challenge is to thread the needle between over-fitting and under-fitting. Several recent papers [@bisbee2019, @ornstein2020, @broniecki2022] have shown that approaches from machine learning can help to automate this process, particularly with large survey samples.
+Ultimately, the accuracy of one's poststratified estimates depends on the out-of-sample predictive performance of the first-stage model. As we've seen above, the challenge is to thread the needle between over-fitting and under-fitting. Several recent papers [@bisbee2019; @ornstein2020; @broniecki2022] have shown that approaches from machine learning can help to automate this process, particularly with large survey samples.
 
-In the code below, I'll demonstrate how an *ensemble* of models -- using the same set of predictors but different methods for combining them into predictions -- can yield superior performance to a single multilevel regression model. In particular, I will fit a "stacked regression" [@breiman1996], which makes predictions based on a weighted average of multiple models, where the weights are assigned by cross-validated prediction performance. The literature on ensemble models is extensive, but for good entry points I recommend @breiman1996, @breiman2001, and @montgomery2012.
+In the code below, I'll demonstrate how an *ensemble* of models -- using the same set of predictors but different methods for combining them into predictions -- can yield superior performance to a single multilevel regression model. In particular, I will fit a "stacked regression" [@breiman1996], which makes predictions based on a weighted average of multiple models, where the weights are assigned by cross-validated prediction performance [@vanderlaan2007] . The literature on ensemble models is extensive, but for good entry points I recommend @breiman1996, @breiman2001, and @montgomery2012.
 
 ```{r, fig.cap='Estimates from an ensemble first-stage model'}
 
@@ -280,15 +282,15 @@ poststratified_estimates <- psframe %>%
 compare_to_truth(poststratified_estimates, truth)
 ```
 
-These performance gains reflect the improvement that come from modeling "deep interactions" in the predictors of public opinion [@ghitza2013]. If, for example, income better predicts partisanship in some states but not in others [@gelman2007], then a model that captures that moderating effect will produce better poststratified estimates than one that does not. Machine learning techniques like random forest [@breiman2001] are especially useful for automatically detecting and representing such deep interactions, and stacked regression and poststratification (SRP) tends to outperform MRP in simulations, particularly for training data with large sample size [@ornstein2020].
+The performance gains in Figure 7 reflect the improvement that comes from modeling "deep interactions" in the predictors of public opinion [@ghitza2013]. If, for example, income better predicts partisanship in some states but not in others [@gelman2007], then a model that captures that moderating effect will produce better poststratified estimates than one that does not. Machine learning techniques like random forest [@breiman2001] are especially useful for automatically detecting and representing such deep interactions, and stacked regression and poststratification (SRP) tends to outperform MRP in simulations, particularly for training data with large sample size [@ornstein2020].
 
 ## Synthetic Poststratification
 
-Suppose that we did not have access to the entire joint distribution of individual-level covariates. @leemann2017 suggest an extension of MRP, which they (delightfully) dub Multilevel Regression and Synthetic Poststratification (MrsP). Lacking the full joint distribution of covariates for poststratification, one can instead create a *synthetic* poststratification frame by assuming that additional covariates are statistically independent of one another. So long as your first stage model is linear-additive, this approach yields the same predictions as if you knew the true joint distribution![^3] And even if the first-stage model is not linear-additive, simulations suggest that the improved performance from additional predictors tends to overcome the error introduced by synthetic poststratification.
+Researchers rarely have access to the entire joint distribution of individual-level covariates. This can be limiting, since there may be variables that one would like to include in the first-stage model, but cannot because is not in the poststratification frame. @leemann2017 suggest an extension of MRP, which they (delightfully) dub Multilevel Regression and Synthetic Poststratification (MrsP). Lacking the full joint distribution of covariates for poststratification, one can instead create a *synthetic* poststratification frame by assuming that additional covariates are statistically independent of one another. So long as the first-stage model is linear-additive, this approach yields the same predictions as if you knew the true joint distribution![^3] And even if the first-stage model is not linear-additive, simulations suggest that the improved performance from additional predictors tends to overcome the error introduced in the poststratification stage.
 
 [^3]: See @ornstein2020 appendix A for mathematical proof.
 
-Let's suppose that we want to include these predictors in the model:
+Here are some CES covariates that we might want to include in our model of police reform:
 
 -   How important is religion to the respondent?
 -   Whether the respondent lives in an urban, rural, or suburban area
@@ -296,7 +298,9 @@ Let's suppose that we want to include these predictors in the model:
 -   Whether the respondent owns or rents their home
 -   Is the respondent the parent or guardian of a child under the age of 18?
 
-These variables may be useful predictors of opinion about police policy and the first-stage model could be improved by including them. But there is no dataset (that I know of) that would allow us to compute a state-level joint probability distribution over every one of them. Instead, we would typically only know the marginal distributions of each covariate (e.g. the percent of a state's residents that are military households, or the percent that live in urban areas). To create a synthetic poststratification frame, we multiply those marginal probabilities together.[^4]
+These variables are likely to be useful predictors of opinion about police reform, and the first-stage model could be improved by including them. But there is no dataset (that I know of) that would allow us to compute a state-level joint probability distribution over every one of them. Instead, we would typically only know the marginal distributions of each covariate (e.g. the percent of a state's residents that are military households, or the percent that live in urban areas). So a synthetic poststratification approach may prove helpful.
+
+To create a synthetic poststratification frame, we create a set of marginal probability distributions, and multiply them together.[^4]
 
 [^4]: The `SRP` package contains a convenience function for this operation (see the [vignette](https://joeornstein.github.io/software/SRP/) for more information).
 
@@ -311,24 +315,73 @@ model4 <- glmer(defund_police ~  gender + educ + race + age +
 
 # construct the poststratification frame
 psframe <- ces %>%
-  count(abb, gender, educ, race, age, division, biden_vote_share) %>% 
+  count(abb, gender, educ, race, age, 
+        division, biden_vote_share) %>% 
+  # convert frequencies to probabilities
   group_by(abb) %>% 
-  summarize(prob = n/n())
+  mutate(prob = n/sum(n))
 
-# find the marginal distribution for each additional variable
-# ...
+# find the marginal distribution for each new variable
+marginal_pew_religimp <- ces %>% 
+  count(abb, pew_religimp) %>% 
+  group_by(abb) %>% 
+  mutate(marginal_pew_religimp = n/sum(n))
 
+marginal_homeowner <- ces %>% 
+  count(abb, homeowner) %>% 
+  group_by(abb) %>% 
+  mutate(marginal_homeowner = n/sum(n))
+
+marginal_urban <- ces %>% 
+  count(abb, urban) %>% 
+  group_by(abb) %>% 
+  mutate(marginal_urban = n/sum(n))
+
+marginal_parent <- ces %>% 
+  count(abb, parent) %>% 
+  group_by(abb) %>% 
+  mutate(marginal_parent = n/sum(n))
+
+marginal_military_household <- ces %>% 
+  count(abb, military_household) %>% 
+  group_by(abb) %>% 
+  mutate(marginal_military_household = n/sum(n))
+
+# merge the marginal distributions together
+synthetic_psframe <- psframe %>% 
+  left_join(marginal_pew_religimp, by = 'abb') %>% 
+  left_join(marginal_homeowner, by = 'abb') %>% 
+  left_join(marginal_urban, by = 'abb') %>% 
+  left_join(marginal_parent, by = 'abb') %>% 
+  left_join(marginal_military_household, by = 'abb') %>% 
+  # and multiply
+  mutate(prob = prob * marginal_pew_religimp *
+           marginal_homeowner * marginal_urban *
+           marginal_parent * marginal_military_household)
 ```
 
-Then poststratify as normal.
+Then poststratify as normal using the synthetic poststratification frame.
 
-CODE TO COME
+```{r, fig.cap = 'Estimates from synthetic poststratification, including additional covariates'}
+
+# make predictions
+synthetic_psframe$predicted_probability <- predict(model4, synthetic_psframe, 
+                                                   type = 'response')
+
+# poststratify
+poststratified_estimates <- synthetic_psframe %>% 
+  group_by(abb) %>% 
+  # (note that we're weighting by prob instead of n here)
+  summarize(estimate = weighted.mean(predicted_probability, prob))
+
+compare_to_truth(poststratified_estimates, truth)
+```
 
 ## Best Performing
 
-As a final demonstration, suppose we had access to the entire joint distribution over those covariates, *and* our first stage model was a Super Learner ensemble...
+As a final demonstration, suppose we had access to the entire joint distribution over those covariates, *and* our first stage model was a Super Learner ensemble. This combination yields the best-performing estimates yet (Figure 9).
 
-```{r, fig.cap='The best performing estimates, using an ensemble first stage model, group-level predictors, and synthetic poststratification.'}
+```{r, fig.cap='The best performing estimates, using a large survey sample, ensemble first stage model, and full set of predictors.'}
 
 # construct the poststratification frame
 psframe <- ces %>% 
@@ -370,7 +423,19 @@ poststratified_estimates <- psframe %>%
 compare_to_truth(poststratified_estimates, truth)
 ```
 
+The results shown in Figure 9 reflect all the gains from a larger sample size, ensemble modeling, and a full set of individual-level and group-level predictors.
+
 # Conclusion
+
+The demonstrations in this chapter suggest a number of lessons for researchers using MRP.
+
+First, be wary of first-stage models that are under- or over-fit to the survey data. As we saw in Figure 3, MRP estimates with too few modeled predictors tend to overshrink towards the grand mean.[^5] Using such estimates in a subsequent analysis would understate the differences between regions. Conversely, models that are over-fit to survey data (e.g. Figure 4) will tend to exaggerate regional differences.
+
+[^5]: In the limit, a first-stage model with zero predictors would yield identical poststratified estimates for each state, equal to the survey sample mean.
+
+Second, new techniques like synthetic poststratification and stacked regression can help researchers manage the tradeoff between under-fitting and over-fitting. Synthetic poststratification allows for the inclusion of more relevant predictors, and regularized ensemble models help ensure that the predictions are not over-fit to noisy survey samples. The best estimates come from combining these two approaches.
+
+Finally, recall that the most significant performance gains in our demonstration came not from more sophisticated modeling techniques, but from more data. As we saw in Figure 6, working with a larger survey yielded greater marginal improvements than any tinkering around with the first-stage modeling choices. MRP is not a panacea, and one should be skeptical of estimates produced from small-sample surveys, regardless of how they are operationalized.
 
 In the code above I emphasize "do-it-yourself" approaches to MRP -- fitting a model, building a poststratification frame, and producing estimates separately. But there are a number of `R` packages available with useful functions to help ease the process. In particular, I would encourage curious readers to explore the `autoMrP` package [@broniecki2022], which implements the ensemble modeling approach described above, and performs quite well in simulations when compared to existing packages.
 
