@@ -1,16 +1,21 @@
 ---
-title: "Multilevel Regression And Poststratification (A Primer)"
+title: "Getting The Most Out Of Surveys: Multilevel Regression And Poststratification"
 author:
   - Joseph T. Ornstein^[Department of Political Science, University of Georgia]
 # date: "November 15, 2021"
 output: pdf_document
 bibliography: references.bib
+keywords: small area estimation, survey weighting, public opinion, R programming, monte carlo simulation
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 set.seed(42)
 ```
+
+TODO:
+
+-   A non-technical "narrative" section, which links the chapter to the goal of detecting causation in the social sciences. Good measurement is as central to causal inference as a good research design, both for reasons of precision (better measurement implies less noisy estimands), and external validity. So much of the data we use for causal inference in the social sciences comes from surveys. Worried about whether the survey is representative of the population you're interested in, or perhaps you're interested in a subpopulation or small area and you don't have a representative survey data for that group. MRP helps by making use of all the information available in a survey, making inferences about individuals *not* in the survey based on the characteristics of individuals *in* the survey.
 
 Often researchers would like to measure public opinion on some policy issue, but the surveys we use to do so are unrepresentative in some important way. Perhaps their respondents come from a convenience sample [@wang2015], or non-response bias skews an otherwise random sample. Or perhaps the data is representative of some larger population (i.e. a country-level random sample), but contains too few observations to make inferences about a subgroup of interest. Even the largest US public opinion surveys do not have enough respondents to make reliable inferences about lower-level political entities like states or municipalities. Conclusions drawn from low frequency observations -- even in a large sample survey -- can be wildly misleading [@ansolabehere2015].
 
