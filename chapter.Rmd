@@ -5,7 +5,8 @@ author:
 # date: "November 15, 2021"
 output: pdf_document
 bibliography: references.bib
-keywords: small area estimation, survey weighting, public opinion, R programming, monte carlo simulation
+abstract: Good causal inference requires good measurement; even the most thoughtfully designed research can be derailed by noisy measures. Because policy scholars often use measures of public opinion as a key dependent or independent variable, paying careful attention to the sources of measurement error from surveys is an essential step for detecting causation. This chapter introduces multilevel regression and poststratification, an approach to adjusting public opinion estimates to account for observed imbalances between the survey sample and population of interest. It covers the history of MRP, recent advances, a running example with sample code, and concludes with a discussion of the approaches limitations and best practices for those interested in applying it to their work.
+keywords: survey weighting, small area estimation, public opinion, R programming, monte carlo simulation
 ---
 
 ```{r setup, include=FALSE}
