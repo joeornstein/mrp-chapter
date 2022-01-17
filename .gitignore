@@ -28,3 +28,7 @@ vignettes/*.pdf
 .Renviron
 # Raw data files
 data/raw/
+
+# latex intermediaries
+springer-template/
+chapter_files/
