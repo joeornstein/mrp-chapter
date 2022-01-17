@@ -1,11 +1,13 @@
 ---
-title: "Getting The Most Out Of Surveys: Multilevel Regression And Poststratification"
+title: "Getting the most out of surveys: Multilevel Regression And Poststratification"
 author:
   - Joseph T. Ornstein^[Department of Political Science, University of Georgia]
 # date: "November 15, 2021"
-output: pdf_document
+output: 
+  pdf_document:
+    keep_tex: true
 bibliography: references.bib
-abstract: Good causal inference requires good measurement; even the most thoughtfully designed research can be derailed by noisy measures. Because policy scholars often use measures of public opinion as a key dependent or independent variable, paying careful attention to the sources of measurement error from surveys is an essential step for detecting causation. This chapter introduces multilevel regression and poststratification, an approach to adjusting public opinion estimates to account for observed imbalances between the survey sample and population of interest. It covers the history of MRP, recent advances, a running example with sample code, and concludes with a discussion of the approaches limitations and best practices for those interested in applying it to their work.
+abstract: Good causal inference requires good measurement; even the most thoughtfully designed research can be derailed by noisy measures and survey error. Because policy scholars are often interested in public opinion as a key dependent or independent variable, paying careful attention to the sources of measurement error from surveys is an essential step for detecting causation. This chapter introduces multilevel regression and poststratification (MRP), an approach to adjusting public opinion estimates to account for observed imbalances between the survey sample and population of interest. It covers the history of MRP, recent advances, a running example with code, and concludes with a discussion of best practices and limitations of the approach.
 keywords: survey weighting, small area estimation, public opinion, R programming, monte carlo simulation
 ---
 
@@ -17,6 +19,20 @@ set.seed(42)
 TODO:
 
 -   A non-technical "narrative" section, which links the chapter to the goal of detecting causation in the social sciences. Good measurement is as central to causal inference as a good research design, both for reasons of precision (better measurement implies less noisy estimands), and external validity. So much of the data we use for causal inference in the social sciences comes from surveys. Worried about whether the survey is representative of the population you're interested in, or perhaps you're interested in a subpopulation or small area and you don't have a representative survey data for that group. MRP helps by making use of all the information available in a survey, making inferences about individuals *not* in the survey based on the characteristics of individuals *in* the survey.
+
+# Learning Objectives
+
+By the end of this chapter, you will be able to:
+
+-   Explain the motivation for MRP and the circumstances under which it is appropriate to implement.
+
+-   Describe the two steps in producing MRP estimates: model fitting and postsratification.
+
+-   Generate MRP estimates by adapting the provided sample code.
+
+-   Implement more sophisticated variants of MRP, including stacked regression and postratification (SRP) or multilevel regression and synthetic poststratification (MrsP) where appropriate.
+
+# Introduction
 
 Often researchers would like to measure public opinion on some policy issue, but the surveys we use to do so are unrepresentative in some important way. Perhaps their respondents come from a convenience sample [@wang2015], or non-response bias skews an otherwise random sample. Or perhaps the data is representative of some larger population (i.e. a country-level random sample), but contains too few observations to make inferences about a subgroup of interest. Even the largest US public opinion surveys do not have enough respondents to make reliable inferences about lower-level political entities like states or municipalities. Conclusions drawn from low frequency observations -- even in a large sample survey -- can be wildly misleading [@ansolabehere2015].
 
@@ -444,5 +460,15 @@ Second, new techniques like synthetic poststratification and stacked regression 
 Finally, recall that the most significant performance gains in our demonstration came not from more sophisticated modeling techniques, but from more data. As we saw in Figure 6, working with a larger survey yielded greater marginal improvements than any tinkering around with the first-stage modeling choices. MRP is not a panacea, and one should be skeptical of estimates produced from small-sample surveys, regardless of how they are operationalized.
 
 In the code above I emphasize "do-it-yourself" approaches to MRP -- fitting a model, building a poststratification frame, and producing estimates separately. But there are a number of `R` packages available with useful functions to help ease the process. In particular, I would encourage curious readers to explore the `autoMrP` package [@broniecki2022], which implements the ensemble modeling approach described above, and performs quite well in simulations when compared to existing packages.
+
+# Further Suggested Readings
+
+-   McElreath, Richard. 2020. *Statistical Rethinking: A Bayesian Course with Examples in R and Stan*. 2nd ed. Boca Raton: Taylor and Francis, CRC Press. (particularly chapter 13).
+
+-   Gelman, Andrew, Jennifer Hill, and Aki Vehtari. 2021. *Regression and Other Stories*. Cambridge, United Kingdom: Cambridge University Press. (particularly chapter 17).
+
+# Review Questions
+
+1.  
 
 # References
