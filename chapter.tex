@@ -106,7 +106,7 @@ R programming, monte carlo simulation},
 \setlength{\emergencystretch}{3em} % prevent overfull lines
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
-\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\setcounter{secnumdepth}{5}
 \newlength{\cslhangindent}
 \setlength{\cslhangindent}{1.5em}
 \newlength{\csllabelwidth}
@@ -138,37 +138,17 @@ R programming, monte carlo simulation},
 \maketitle
 \begin{abstract}
 Good causal inference requires good measurement; even the most
-thoughtfully designed research can be derailed by noisy measures and
-survey error. Because policy scholars are often interested in public
-opinion as a key dependent or independent variable, paying careful
-attention to the sources of measurement error from surveys is an
-essential step for detecting causation. This chapter introduces
-multilevel regression and poststratification (MRP), an approach to
-adjusting public opinion estimates to account for observed imbalances
-between the survey sample and population of interest. It covers the
-history of MRP, recent advances, a running example with code, and
-concludes with a discussion of best practices and limitations of the
-approach.
+thoughtfully designed research can be derailed by noisy data. Because
+policy scholars are often interested in public opinion as a key
+dependent or independent variable, paying careful attention to the
+sources of measurement error from surveys is an essential step for
+detecting causation. This chapter introduces multilevel regression and
+poststratification (MRP), an approach to adjusting public opinion
+estimates to account for observed imbalances between the survey sample
+and population of interest. It covers the history of MRP, recent
+advances, a running example with code, and concludes with a discussion
+of best practices and limitations of the approach.
 \end{abstract}
-
-TODO:
-
-\begin{itemize}
-\tightlist
-\item
-  A non-technical ``narrative'' section, which links the chapter to the
-  goal of detecting causation in the social sciences. Good measurement
-  is as central to causal inference as a good research design, both for
-  reasons of precision (better measurement implies less noisy
-  estimands), and external validity. So much of the data we use for
-  causal inference in the social sciences comes from surveys. Worried
-  about whether the survey is representative of the population you're
-  interested in, or perhaps you're interested in a subpopulation or
-  small area and you don't have a representative survey data for that
-  group. MRP helps by making use of all the information available in a
-  survey, making inferences about individuals \emph{not} in the survey
-  based on the characteristics of individuals \emph{in} the survey.
-\end{itemize}
 
 \hypertarget{learning-objectives}{%
 \section{Learning Objectives}\label{learning-objectives}}
@@ -243,6 +223,31 @@ best first-stage models are \emph{regularized} (Gelman 2018) to avoid
 both over- and under-fitting to the survey data. Regularized ensemble
 models (Ornstein 2020) with group-level predictors tend to produce the
 best estimates, especially when trained on large datasets.
+
+\hypertarget{how-it-works}{%
+\section{How It Works}\label{how-it-works}}
+
+Perhaps the core insight motivating MRP is that unrepresentative surveys
+can be , while a survey sample may be unrepresentative
+
+TODO:
+
+\begin{itemize}
+\tightlist
+\item
+  A non-technical ``narrative'' section, which links the chapter to the
+  goal of detecting causation in the social sciences. Good measurement
+  is as central to causal inference as a good research design, both for
+  reasons of precision (better measurement implies less noisy
+  estimands), and external validity. So much of the data we use for
+  causal inference in the social sciences comes from surveys. Worried
+  about whether the survey is representative of the population you're
+  interested in, or perhaps you're interested in a subpopulation or
+  small area and you don't have a representative survey data for that
+  group. MRP helps by making use of all the information available in a
+  survey, making inferences about individuals \emph{not} in the survey
+  based on the characteristics of individuals \emph{in} the survey.
+\end{itemize}
 
 \hypertarget{running-example}{%
 \section{Running Example}\label{running-example}}

@@ -6,8 +6,9 @@ author:
 output: 
   pdf_document:
     keep_tex: true
+    number_sections: true
 bibliography: references.bib
-abstract: Good causal inference requires good measurement; even the most thoughtfully designed research can be derailed by noisy measures and survey error. Because policy scholars are often interested in public opinion as a key dependent or independent variable, paying careful attention to the sources of measurement error from surveys is an essential step for detecting causation. This chapter introduces multilevel regression and poststratification (MRP), an approach to adjusting public opinion estimates to account for observed imbalances between the survey sample and population of interest. It covers the history of MRP, recent advances, a running example with code, and concludes with a discussion of best practices and limitations of the approach.
+abstract: Good causal inference requires good measurement; even the most thoughtfully designed research can be derailed by noisy data. Because policy scholars are often interested in public opinion as a key dependent or independent variable, paying careful attention to the sources of measurement error from surveys is an essential step for detecting causation. This chapter introduces multilevel regression and poststratification (MRP), an approach to adjusting public opinion estimates to account for observed imbalances between the survey sample and population of interest. It covers the history of MRP, recent advances, a running example with code, and concludes with a discussion of best practices and limitations of the approach.
 keywords: survey weighting, small area estimation, public opinion, R programming, monte carlo simulation
 ---
 
@@ -15,10 +16,6 @@ keywords: survey weighting, small area estimation, public opinion, R programming
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 set.seed(42)
 ```
-
-TODO:
-
--   A non-technical "narrative" section, which links the chapter to the goal of detecting causation in the social sciences. Good measurement is as central to causal inference as a good research design, both for reasons of precision (better measurement implies less noisy estimands), and external validity. So much of the data we use for causal inference in the social sciences comes from surveys. Worried about whether the survey is representative of the population you're interested in, or perhaps you're interested in a subpopulation or small area and you don't have a representative survey data for that group. MRP helps by making use of all the information available in a survey, making inferences about individuals *not* in the survey based on the characteristics of individuals *in* the survey.
 
 # Learning Objectives
 
@@ -34,7 +31,9 @@ By the end of this chapter, you will be able to:
 
 # Introduction
 
-Often researchers would like to measure public opinion on some policy issue, but the surveys we use to do so are unrepresentative in some important way. Perhaps their respondents come from a convenience sample [@wang2015], or non-response bias skews an otherwise random sample. Or perhaps the data is representative of some larger population (i.e. a country-level random sample), but contains too few observations to make inferences about a subgroup of interest. Even the largest US public opinion surveys do not have enough respondents to make reliable inferences about lower-level political entities like states or municipalities. Conclusions drawn from low frequency observations -- even in a large sample survey -- can be wildly misleading [@ansolabehere2015].
+The book you are reading ... "credibility revolution" in the social sciences, a set of techniques for The replication crisis in experimental psychology \[@button2013\]
+
+Often researchers would like to measure public opinion on some policy issue, but the surveys we use to do so are unrepresentative in some important way. Perhaps their respondents come from a convenience sample \[@wang2015\], or non-response bias skews an otherwise random sample. Or perhaps the data is representative of some larger population (i.e. a country-level random sample), but contains too few observations to make inferences about a subgroup of interest. Even the largest US public opinion surveys do not have enough respondents to make reliable inferences about lower-level political entities like states or municipalities. Conclusions drawn from low frequency observations -- even in a large sample survey -- can be wildly misleading [@ansolabehere2015].
 
 This presents a challenge for public opinion research: how to take unrepresentative survey data and adjust it so that it is useful for our particular research question. In this chapter, I will demonstrate a method called **multilevel regression and poststratification** (MRP). Using this approach, the researcher first constructs a model of public opinion (multilevel regression) and then reweights the model's predictions based on the observed characteristics of the population of interest (poststratification). In the sections to follow, I will describe this approach in detail, and will accompany this explanation with replication code in the `R` statistical language.
 
@@ -43,6 +42,14 @@ MRP was first introduced by @gelman1997, and in the subsequent decades it has he
 In the following sections, I will illustrate how MRP can improve estimates of small area public opinion. Our running example will be drawn from the Cooperative Election Study [@schaffner2021], a 50,000+ respondent study of voters in the United States. The 2020 wave of the study includes a question asking respondents whether they support a policy that would "decrease the number of police on the street by 10 percent, and increase funding for other public services." Since police reform is a policy issue on which US local governments have a significant amount of autonomy, it would be useful to know how opinions on this issue vary from place to place without having to conduct separate, costly surveys in each area.
 
 As we will see, the accuracy of our MRP estimates depends critically on whether the first-stage model makes good out-of-sample predictions. The best first-stage models are *regularized* [@gelman2018] to avoid both over- and under-fitting to the survey data. Regularized ensemble models [@ornstein2020] with group-level predictors tend to produce the best estimates, especially when trained on large datasets.
+
+# How It Works
+
+Perhaps the core insight motivating MRP is that unrepresentative surveys can be , while a survey sample may be unrepresentative
+
+TODO:
+
+-   A non-technical "narrative" section, which links the chapter to the goal of detecting causation in the social sciences. Good measurement is as central to causal inference as a good research design, both for reasons of precision (better measurement implies less noisy estimands), and external validity. So much of the data we use for causal inference in the social sciences comes from surveys. Worried about whether the survey is representative of the population you're interested in, or perhaps you're interested in a subpopulation or small area and you don't have a representative survey data for that group. MRP helps by making use of all the information available in a survey, making inferences about individuals *not* in the survey based on the characteristics of individuals *in* the survey.
 
 # Running Example
 
