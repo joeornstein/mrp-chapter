@@ -8,7 +8,7 @@ output:
     keep_tex: true
     number_sections: true
 bibliography: references.bib
-abstract: Good causal inference requires good measurement; even the most thoughtfully designed research can be derailed by noisy data. Because policy scholars are often interested in public opinion as a key dependent or independent variable, paying careful attention to the sources of measurement error from surveys is an essential step for detecting causation. This chapter introduces multilevel regression and poststratification (MRP), an approach to adjusting public opinion estimates to account for observed imbalances between the survey sample and population of interest. It covers the history of MRP, recent advances, a running example with code, and concludes with a discussion of best practices and limitations of the approach.
+abstract: Good causal inference requires good measurement; even the most thoughtfully designed research can be derailed by noisy data. Because policy scholars are often interested in public opinion as a key dependent or independent variable, paying careful attention to the sources of measurement error from surveys is an essential step toward detecting causation. This chapter introduces multilevel regression and poststratification (MRP), an approach to adjusting public opinion estimates to account for observed imbalances between the survey sample and population of interest. It covers the history of MRP, recent advances, an example analysis with code, and concludes with a discussion of best practices and limitations of the approach.
 keywords: survey weighting, small area estimation, public opinion, R programming, monte carlo simulation
 ---
 
@@ -19,7 +19,7 @@ set.seed(42)
 
 **Keywords**
 
-survey weighting, small area estimation, public opinion, R programming, Monte Carlo simulation
+survey weighting, small area estimation, measurement, public opinion, R programming, Monte Carlo simulation
 
 **Learning Objectives**
 
@@ -35,21 +35,21 @@ By the end of this chapter, you will be able to:
 
 # Introduction
 
-The book you are reading is a testament to the "credibility revolution" in the social sciences [@angrist2010], a wide-ranging effort spanning multiple disciplines to develop credible, design-based approaches causal inference. It is difficult to overstate the influence this revolution has had on empirical social science, and the increasing attention that policymakers pay to good research design when crafting policies is a welcome trend.
+The book you are reading is a testament to the "credibility revolution" in the social sciences [@angrist2010], a wide-ranging effort spanning multiple disciplines to develop credible, design-based approaches causal inference. It is difficult to overstate the influence this revolution has had on empirical social science, and the increasing emphasis that policymakers place on informing policy with good research design is a welcome trend.
 
-But the ongoing replication crisis in experimental psychology \[@button2013\] has made clear that good research design alone is insufficient to yield good science. After all, double-blind randomized control trials are the "gold standard" of credible causal inference, but small sample sizes and noisy measurement have created a situation where many published effect estimates fail to replicate upon further scrutiny \[@loken2017\]. To confidently detect causation, one needs both good research design *and* good measurement.
+But as the ongoing replication crisis in experimental psychology [@button2013] has made clear, good research design alone is insufficient to yield good science. After all, double-blind randomized control trials are the "gold standard" of credible causal inference, but small sample sizes and noisy measurement have created a situation where many published effect estimates fail to replicate upon further scrutiny [@loken2017]. To confidently detect causation, one needs both good research design *and* good measurement.
 
-Often policy researchers are interested in public opinion on some policy issue, either as an independent or dependent variable. But the surveys we use to measure public opinion can be unrepresentative in some important way. Perhaps their respondents come from a convenience sample [@wang2015], or non-response bias skews an otherwise random sample. Or perhaps the data is representative of some larger population (i.e. a country-level random sample), but contains too few observations to make inferences about a subgroup of interest. Even the largest US public opinion surveys do not have enough respondents to make reliable inferences about lower-level political entities like states or municipalities. Conclusions drawn from low frequency observations -- even in a large sample survey -- can be wildly misleading [@ansolabehere2015].
+Often policy researchers are interested in public opinion on some issue, either as an independent or dependent variable. But the surveys we use to measure public opinion are frequently unrepresentative in some important way. Perhaps their respondents come from a convenience sample [@wang2015], or non-response bias skews an otherwise random sample. Or perhaps the data is representative of some larger population (i.e. a country-level random sample), but contains too few observations to make inferences about a subgroup of interest. Even the largest US public opinion surveys do not have enough respondents to make reliable inferences about lower-level political entities like states or municipalities. Conclusions drawn from low frequency observations -- even in a large sample survey -- can be wildly misleading [@ansolabehere2015].
 
-This presents a challenge for public opinion research: how to take unrepresentative survey data and adjust it so that it is useful for our particular research question. In this chapter, I will demonstrate a method called **multilevel regression and poststratification** (MRP). Using this approach, the researcher first constructs a model of public opinion (multilevel regression) and then reweights the model's predictions based on the observed characteristics of the population of interest (poststratification). In the sections to follow, I will describe this approach in detail, and will accompany this explanation with replication code in the `R` statistical language.
+This presents a challenge for researchers: how to take unrepresentative survey data and adjust it so that it is useful for our particular research question. In this chapter, I will demonstrate a method called **multilevel regression and poststratification** (MRP). Using this approach, the researcher first constructs a model of public opinion (multilevel regression) and then reweights the model's predictions based on the observed characteristics of the population of interest (poststratification). In the sections that follow I will describe this approach in detail, accompanied by replication code in the `R` statistical language.
 
-As we will see, the accuracy of our MRP estimates depends critically on whether the first-stage model makes good out-of-sample predictions. The best first-stage models are *regularized* [@gelman2018] to avoid both over- and under-fitting to the survey data. Regularized ensemble models [@ornstein2020] with group-level predictors tend to produce the best estimates, especially when trained on large datasets.
+As we will see, the accuracy of our MRP estimates depends critically on whether the first-stage model makes good out-of-sample predictions. The best first-stage models are *regularized* [@gelman2018] to avoid both over- and under-fitting to the survey data. Regularized ensemble models [@ornstein2020] with group-level predictors tend to produce the best estimates, especially when trained on large survey datasets.
 
 # How It Works
 
 MRP was first introduced by @gelman1997, and in the subsequent decades it has helped address a diverse set of research questions in political science. These range from generating election forecasts using unrepresentative survey data [@wang2015] to assessing the responsiveness of state [@lax2012] and local policymakers [@tausanovitch2014] to their constituents' policy preferences.
 
-To demonstrate how it works, the next section will introduce a running example will be drawn from the Cooperative Election Study [@schaffner2021], a 50,000+ respondent study of voters in the United States. The 2020 wave of the study includes a question asking respondents whether they support a policy that would "decrease the number of police on the street by 10 percent, and increase funding for other public services." Since police reform is a policy issue on which US local governments have a significant amount of autonomy, it would be useful to know how opinions on this issue vary from place to place without having to conduct separate, costly surveys in each area.
+To demonstrate how the method works, the next section will introduce a running example drawn from the Cooperative Election Study [@schaffner2021], a 50,000+ respondent study of voters in the United States. The 2020 wave of the study includes a question asking respondents whether they support a policy that would "decrease the number of police on the street by 10 percent, and increase funding for other public services." Since police reform is a policy issue on which US local governments have a significant amount of autonomy, it would be useful to know how opinions on this issue vary from place to place without having to conduct separate, costly surveys in each area.
 
 The problem is that even a survey as large as CES has relatively few respondents in some small areas of interest. If we wanted to know, for example, what voters in Detroit thought about police reform, a survey of 50,000 people randomly sampled from across the United States will have, on average, only 100 people from Detroit. Estimates from such a small sample will not be very precise. And more importantly, those 100 people are unlikely to be representative of the population of Detroit, since the survey was designed to be representative of the country at large.
 
@@ -57,9 +57,9 @@ The core insight of the MRP approach is that we can use similar respondents from
 
 # Running Example
 
-To help demonstrate how MRP works, we'll draw a small survey sample from the CES, and, using that sample alone, try to estimate state-level public opinion on police reform in each US state. In this way, we can evaluate the accuracy of our MRP estimates explore how various refinements to the method improve predictive accuracy. This approach mirrors @buttice2013, who use disaggregated ressponses from large-scale US survey of voters as the target. The Cooperative Election Study data is available [here](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi%3A10.7910/DVN/E9N6PH), and we'll be using a tidied version of the dataset created by the `R/cleanup-ces-2020.R` script.[^1]
+To help demonstrate this process, we will draw a small random sample from the CES survey, and, using that sample alone, attempt to estimate state-level public opinion on police reform in each US state. In this way, we can evaluate the accuracy of our MRP estimates, and explore how various refinements to the method improve predictive accuracy. This approach mirrors @buttice2013, who use disaggregated responses from large-scale US survey of voters as their target estimand to evaluate MRP's performance. The Cooperative Election Study data is available [here](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi%3A10.7910/DVN/E9N6PH), and we'll be using a tidied version of the dataset created by the `R/cleanup-ces-2020.R` script.[^1]
 
-[^1]: All replication code and data will be made available on a public repository. Throughout, I will use R functions from the "tidyverse" to make the code more human-readable.
+[^1]: All replication code and data will be made available on a public repository. Throughout, I will use R functions from the "tidyverse" [@wickham2019] to make the code more human-readable.
 
 ```{r load-ces}
 library(tidyverse)
@@ -87,7 +87,7 @@ truth %>%
   theme_minimal()
 ```
 
-Oregon is the only state where a majority of respondents supported this policy proposal. And note that Figure 1 likely *overstates* the percent of the total population that support such a policy, since self-identified Democrats are over-represented in the CES sample. But nevertheless, these population-level parameters will be a useful target to estimate with MRP.
+Oregon is the only state where a majority of respondents supported this policy proposal. And note that Figure 1 likely *overstates* the percent of the total population that support such a policy, since self-identified Democrats are over-represented in the CES sample. But nevertheless, these population-level parameters will be a useful target to evaluate the performance of our MRP estimates.
 
 ## Draw a Sample
 
@@ -186,7 +186,7 @@ But we can still do better. In the following sections, I will show how successiv
 
 ## Beware Overfitting
 
-A common instinct among social scientists building models is to take a "kitchen sink" approach, including as many explanatory variables as possible [@achen2005]. This is counterproductive when the objective is out-of-sample predictive accuracy. To illustrate, let's estimate a model with a separate intercept term for each state -- a "fixed effects" model. Because our sample contains several states with very few observations, these state-specific intercepts will be over-fit to sampling variability.
+A common instinct among social scientists building models is to take a "kitchen sink" approach, including as many explanatory variables as possible [@achen2005]. This is counterproductive when the objective is out-of-sample predictive accuracy. To illustrate, let's estimate a model with a separate intercept term for each state -- a "fixed effects" model. Because our sample contains several states with very few observations, these state-specific intercepts will be overfit to sampling variability.
 
 ```{r, fig.cap='Overfit MRP estimates from fixed effects model'}
 
@@ -460,17 +460,17 @@ The results shown in Figure 9 reflect all the gains from a larger sample size, e
 
 # Conclusion
 
-The demonstrations in this chapter suggest a number of lessons for researchers using MRP.
+For policy researchers interested in public opinion, MRP and its various refinements offer a useful approach to get the most out of survey data. The results I've presented in this chapter suggest a few lessons to keep in mind when applying MRP to one's own research.
 
-First, be wary of first-stage models that are under- or over-fit to the survey data. As we saw in Figure 3, MRP estimates with too few modeled predictors tend to overshrink towards the grand mean.[^5] Using such estimates to inform subsequent causal inference would understate the differences between regions. Conversely, models that are over-fit to survey data (e.g. Figure 4) will tend to exaggerate regional differences.
+First, be wary of first-stage models that are underfit or overfit to the survey data. As we saw in Figure 3, MRP estimates with too few predictors tend to over-shrink towards the grand mean.[^5] Using such estimates to inform subsequent causal inference would understate the differences between regions. Conversely, models that are overfit to survey data (e.g. Figure 4) will tend to exaggerate regional differences.
 
 [^5]: In the limit, a first-stage model with zero predictors would yield identical poststratified estimates for each state, equal to the survey sample mean.
 
-Second, new techniques like synthetic poststratification and stacked regression can help researchers manage the tradeoff between under-fitting and over-fitting. Synthetic poststratification allows for the inclusion of more relevant predictors, and regularized ensemble models help ensure that the predictions are not over-fit to noisy survey samples. The best estimates come from combining these two approaches.
+Second, new techniques like synthetic poststratification and stacked regression can help researchers manage the tradeoff between underfitting and overfitting. Synthetic poststratification allows for the inclusion of more relevant predictors, and regularized ensemble models help ensure that the predictions are not over-fit to noisy survey samples. The best estimates often come from combining these two approaches.
 
-Finally, recall that the most significant performance gains in our demonstration came not from more sophisticated modeling techniques, but from more data. As we saw in Figure 6, working with a larger survey yielded greater marginal improvements than any tinkering around with the first-stage modeling choices. MRP is not a panacea, and one should be skeptical of estimates produced from small-sample surveys, regardless of how they are operationalized.
+Finally, recall that the most significant performance gains in our demonstration came not from more sophisticated modeling techniques, but from more data. As we saw in Figure 6, working with a larger survey yielded greater improvements than any tinkering around with the first-stage modeling choices. MRP is not a panacea, and one should be skeptical of estimates produced from small-sample surveys, regardless of how they are operationalized.
 
-In the code above I emphasize "do-it-yourself" approaches to MRP -- fitting a model, building a poststratification frame, and producing estimates separately. But there are a number of `R` packages available with useful functions to help ease the process. In particular, I would encourage curious readers to explore the `autoMrP` package [@broniecki2022], which implements the ensemble modeling approach described above, and performs quite well in simulations when compared to existing packages.
+In the code above I emphasize "do-it-yourself" approaches to MRP -- fitting a model, building a poststratification frame, and producing estimates separately. But there are a now number of `R` packages available with useful functions to help ease the process. In particular, I would encourage curious readers to explore the `autoMrP` package [@broniecki2022], which implements the ensemble modeling approach described above, and performs quite well in simulations when compared to existing packages.
 
 # Further Suggested Readings
 
