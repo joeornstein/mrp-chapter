@@ -4,12 +4,6 @@
 %
 \documentclass[
 ]{article}
-\title{Getting the most out of surveys: Multilevel Regression And
-Poststratification}
-\author{Joseph T. Ornstein\footnote{Department of Political Science,
-  University of Georgia}}
-\date{}
-
 \usepackage{amsmath,amssymb}
 \usepackage{lmodern}
 \usepackage{iftex}
@@ -107,22 +101,22 @@ R programming, monte carlo simulation},
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \setcounter{secnumdepth}{5}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
 \newlength{\cslhangindent}
 \setlength{\cslhangindent}{1.5em}
 \newlength{\csllabelwidth}
 \setlength{\csllabelwidth}{3em}
-\newlength{\cslentryspacingunit} % times entry-spacing
-\setlength{\cslentryspacingunit}{\parskip}
 \newenvironment{CSLReferences}[2] % #1 hanging-ident, #2 entry spacing
  {% don't indent paragraphs
   \setlength{\parindent}{0pt}
   % turn on hanging indent if param 1 is 1
-  \ifodd #1
-  \let\oldpar\par
-  \def\par{\hangindent=\cslhangindent\oldpar}
-  \fi
+  \ifodd #1 \everypar{\setlength{\hangindent}{\cslhangindent}}\ignorespaces\fi
   % set entry spacing
-  \setlength{\parskip}{#2\cslentryspacingunit}
+  \ifnum #2 > 0
+  \setlength{\parskip}{#2\baselineskip}
+  \fi
  }%
  {}
 \usepackage{calc}
@@ -130,9 +124,12 @@ R programming, monte carlo simulation},
 \newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{#1}}
 \newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}\break}
 \newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
-\ifLuaTeX
-  \usepackage{selnolig}  % disable illegal ligatures
-\fi
+
+\title{Getting the most out of surveys: Multilevel Regression And
+Poststratification}
+\author{Joseph T. Ornstein\footnote{Department of Political Science,
+  University of Georgia}}
+\date{}
 
 \begin{document}
 \maketitle
@@ -716,25 +713,7 @@ Montgomery, Hollenbach, and Ward (2012).
                        \AttributeTok{newX =}\NormalTok{ newX, }
                        \AttributeTok{family =} \FunctionTok{binomial}\NormalTok{(),}
                        \AttributeTok{SL.library =}\NormalTok{ SL.library, }\AttributeTok{verbose =} \ConstantTok{FALSE}\NormalTok{)}
-\end{Highlighting}
-\end{Shaded}
 
-\begin{verbatim}
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
 \CommentTok{\# make predictions}
 \NormalTok{psframe}\SpecialCharTok{$}\NormalTok{predicted\_probability }\OtherTok{\textless{}{-}}\NormalTok{ sl}\SpecialCharTok{$}\NormalTok{SL.predict}
 
@@ -943,25 +922,7 @@ estimates yet (Figure 9).
                        \AttributeTok{family =} \FunctionTok{binomial}\NormalTok{(),}
                        \AttributeTok{SL.library =}\NormalTok{ SL.library, }
                        \AttributeTok{verbose =} \ConstantTok{FALSE}\NormalTok{)}
-\end{Highlighting}
-\end{Shaded}
 
-\begin{verbatim}
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-## Error : loading required package (ranger) failed
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
 \CommentTok{\# make predictions}
 \NormalTok{psframe}\SpecialCharTok{$}\NormalTok{predicted\_probability }\OtherTok{\textless{}{-}}\NormalTok{ sl}\SpecialCharTok{$}\NormalTok{SL.predict}
 
