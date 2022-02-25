@@ -1,15 +1,23 @@
 ---
-title: "Getting the most out of surveys: Multilevel Regression And Poststratification"
-author:
-  - Joseph T. Ornstein^[Department of Political Science, University of Georgia]
-# date: "November 15, 2021"
-output: 
+title: 'Getting the most out of surveys: Multilevel Regression And Poststratification'
+author: "Joseph T. Ornstein^[Department of Political Science, University of Georgia]"
+output:
+  word_document: default
   pdf_document:
-    keep_tex: true
-    number_sections: true
+    keep_tex: yes
+    number_sections: yes
 bibliography: references.bib
-abstract: Good causal inference requires good measurement; even the most thoughtfully designed research can be derailed by noisy data. Because policy scholars are often interested in public opinion as a key dependent or independent variable, paying careful attention to the sources of measurement error from surveys is an essential step toward detecting causation. This chapter introduces multilevel regression and poststratification (MRP), an approach to adjusting public opinion estimates to account for observed imbalances between the survey sample and population of interest. It covers the history of MRP, recent advances, an example analysis with code, and concludes with a discussion of best practices and limitations of the approach.
-keywords: survey weighting, small area estimation, public opinion, R programming, monte carlo simulation
+abstract: Good causal inference requires good measurement; even the most thoughtfully
+  designed research can be derailed by noisy data. Because policy scholars are often
+  interested in public opinion as a key dependent or independent variable, paying
+  careful attention to the sources of measurement error from surveys is an essential
+  step toward detecting causation. This chapter introduces multilevel regression and
+  poststratification (MRP), an approach to adjusting public opinion estimates to account
+  for observed imbalances between the survey sample and population of interest. It
+  covers the history of MRP, recent advances, an example analysis with code, and concludes
+  with a discussion of best practices and limitations of the approach.
+keywords: survey weighting, small area estimation, public opinion, R programming,
+  monte carlo simulation
 ---
 
 ```{r setup, include=FALSE}
