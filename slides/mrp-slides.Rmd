@@ -1,0 +1,290 @@
+---
+title: "Getting the Most Out of Surveys"
+subtitle: "Multilevel Regression and Poststratification (MRP)"
+author: "Joseph T. Ornstein"
+institute: "University of Georgia"
+date: "5 July, 2022"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+theme_set(theme_minimal(base_size = 16))
+knitr::opts_chunk$set(comment=NA, fig.width=8, fig.height=5, 
+                      fig.align = 'center', out.width = 600,
+                      message=FALSE, warning=FALSE, echo=TRUE)
+set.seed(42)
+library(tidyverse)
+library(here)
+```
+
+background-image: url(https://new-cdn.mamamia.com.au/mamamia-pwa.appspot.com/cms_images/variations/596x397.3333333333333-789086803473.jpg)
+background-size: contain
+
+---
+
+class: inverse, center, middle
+
+# Overview
+
+---
+
+# Overview
+
+By the end of today's lecture, you will be able to:
+
+--
+
+- Explain the motivation for MRP and the circumstances under which it is appropriate to implement.
+
+--
+
+- Describe the two steps in producing MRP estimates: model fitting and postsratification.
+
+--
+
+- Generate MRP estimates by adapting the provided sample code.
+
+--
+
+- Implement more sophisticated variants of MRP, including stacked regression and postratification (SRP) or multilevel regression and synthetic poststratification (MrsP) where appropriate.
+
+---
+
+class: center, inverse, middle
+
+# Causal Inference requires Careful Measurement
+
+
+---
+
+## Causal Inference requires Careful Measurement
+
+- Replication crisis in psychology and other social sciences .tiny[(e.g. Button 2010)]
+
+- Small sample sizes and noisy measurement create false positives
+
+???
+
+- May want Conditional Average Treatment Effects (CATEs)
+
+
+---
+
+class: inverse, center, middle
+
+# How It Works
+
+---
+
+# Multilevel Regression and Poststratification (In Two Easy Steps)
+
+<br>
+
+--
+
+## Step 1: Multilevel Regression
+
+Estimate a (regularized) model to predict the outcome.
+
+--
+
+<br>
+
+
+## Step 2: Poststratification
+
+Reweight the predictions from the model to your population of interest.
+
+---
+
+
+class: inverse, center, middle
+
+# Example
+
+
+
+---
+
+# Example
+
+Suppose you had to guess the average height of this group of children:
+
+- Marco (male, 72 months old)
+
+- Roberto (male, 54 months old)
+
+- Anna (female, 60 months old)
+
+- Maria (female, 80 months old)
+
+- Luca (male, 36 months old)
+
+--
+
+<br>
+
+### How would you approach this problem?
+
+---
+
+# Step 1: Fit a Model
+
+```{r, echo = FALSE}
+d <- UsingR::kid.weights |> 
+  mutate(height = height * 2.54)
+
+p <- ggplot(data = d,
+       mapping = aes(x=age, y=height, color = gender)) +
+  geom_point(alpha = 0.5) +
+  labs(x = 'Age (Years)', y = 'Height (cm)',
+       color = 'Gender',
+       caption = 'Data from US children (NHANES III)')
+
+p
+```
+
+---
+
+# Step 1: Fit a Model
+
+$$\text{Height}_i = \beta_0 + \text{Age}_i\beta_{1} + \text{Gender}_i\beta_{2} + \varepsilon_i$$
+
+```{r, echo = FALSE}
+p + facet_wrap(~gender) +
+  geom_smooth(method = 'lm')
+```
+
+---
+
+# Step 1: Fit A Model
+
+$$\text{Height}_i = \beta_0 + \text{Age}_i\beta_{1} + \text{Gender}_i\beta_{2} + \varepsilon_i$$
+
+```{r}
+lm1 <- lm(height ~ age + gender, data = d)
+
+lm1$coefficients
+```
+
+---
+
+# Step 2: Poststratify
+
+$$\text{Height}_i = 63.75 + \text{Age}_i\times 0.612 - \text{Gender}_i\times 0.661 + \varepsilon_i$$
+<br>
+
+Now, weight the model's predictions based on the composition of the group:
+
+- Marco (male, 72 months old): 63.75 + 0.612 $\times$ 72 - 0.661 = `r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 72 + lm1$coefficients['genderM']*1, 1)`
+
+- Roberto (male, 54 months old): 63.75 + 0.612 $\times$ 54 - 0.661 = `r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 54 + lm1$coefficients['genderM']*1, 1)`
+
+- Anna (female, 60 months old): 63.75 + 0.612 $\times$ 60 = `r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 60 + lm1$coefficients['genderM']*0, 1)`
+
+- Maria (female, 80 months old): 63.75 + 0.612 $\times$ 80 = `r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 80 + lm1$coefficients['genderM']*0, 1)`
+
+- Luca (male, 36 months old): 63.75 + 0.612 $\times$ 36 - 0.661 = `r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 36 + lm1$coefficients['genderM']*1, 1)`
+
+--
+
+<br>
+
+**Predicted average height:** `r (107.1 + 96.1 + 100.5 + 112.7 + 85.1) / 5`
+
+---
+
+class: center, middle
+
+# That was MRP!
+
+???
+
+Everything else is refinements: making the first-stage model more complex or different ways of generating the poststratification frame.
+
+---
+
+class: inverse, center, middle
+
+# A Political Science Example
+
+---
+
+
+# A Political Science Example
+
+```{r, echo = F, fig.width=15}
+knitr::include_graphics('https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Defund_the_police.jpg/330px-Defund_the_police.jpg')
+```
+
+???
+
+Police reform is a contentious political topic in the United States, following a number of high-profile police killings of citizens. One could imagine a research question that was interested in the determinants of, or effects of, changes in public opinion regarding police reform. And because police departments in the United States are administered by local governments rather than the state or national level government, knowing how support varies across small political units would be particularly useful.
+
+Image credit: By Taymaz Valley - https://www.flickr.com/photos/taymazvalley/49974424258, CC BY 2.0, https://commons.wikimedia.org/w/index.php?curid=91013003
+
+---
+
+# A Political Science Example
+
+```{r}
+# load some R libraries we'll need
+library(tidyverse)
+library(here)
+
+# load CES (2020) national-level survey
+load( here( 'data/CES-2020.RData' ) )
+
+names(ces)
+
+dim(ces)
+```
+
+???
+
+There are roughly 55,000 people in the survey. We know X, Y, and Z individual-level characteristics, plus the state where they live.
+
+---
+
+# Our Target
+
+```{r}
+target <- ces |> 
+  group_by(abb) |> 
+  summarize(truth = mean(defund_police))
+```
+
+```{r, echo = FALSE}
+target |> 
+  mutate(abb = fct_reorder(abb, truth)) |> 
+  ggplot(mapping = aes(x=truth, y=abb)) +
+  geom_point(alpha = 0.7) +
+  labs(x = 'Percent Who Support Police Reform Policy',
+       y = 'State')
+```
+
+
+---
+
+## Overfitting vs. Underfitting
+
+
+---
+
+class: inverse, center, middle
+
+# Refinements
+
+---
+
+# Refinements
+
+1. More complex first stage models
+
+2. Synthetic poststratification

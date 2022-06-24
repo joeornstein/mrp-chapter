@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Getting the Most Out of Surveys</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Joseph T. Ornstein" />
+    <script src="libs/header-attrs-2.11/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Getting the Most Out of Surveys
+## Multilevel Regression and Poststratification (MRP)
+### Joseph T. Ornstein
+### University of Georgia
+### 5 July, 2022
+
+---
+
+
+
+
+background-image: url(https://new-cdn.mamamia.com.au/mamamia-pwa.appspot.com/cms_images/variations/596x397.3333333333333-789086803473.jpg)
+background-size: contain
+
+---
+
+class: inverse, center, middle
+
+# Overview
+
+---
+
+# Overview
+
+By the end of today's lecture, you will be able to:
+
+--
+
+- Explain the motivation for MRP and the circumstances under which it is appropriate to implement.
+
+--
+
+- Describe the two steps in producing MRP estimates: model fitting and postsratification.
+
+--
+
+- Generate MRP estimates by adapting the provided sample code.
+
+--
+
+- Implement more sophisticated variants of MRP, including stacked regression and postratification (SRP) or multilevel regression and synthetic poststratification (MrsP) where appropriate.
+
+---
+
+class: center, inverse, middle
+
+# Causal Inference requires Careful Measurement
+
+
+---
+
+## Causal Inference requires Careful Measurement
+
+- Replication crisis in psychology and other social sciences .tiny[(e.g. Button 2010)]
+
+- Small sample sizes and noisy measurement create false positives
+
+???
+
+- May want Conditional Average Treatment Effects (CATEs)
+
+
+---
+
+class: inverse, center, middle
+
+# How It Works
+
+---
+
+# Multilevel Regression and Poststratification (In Two Easy Steps)
+
+&lt;br&gt;
+
+--
+
+## Step 1: Multilevel Regression
+
+Estimate a (regularized) model to predict the outcome.
+
+--
+
+&lt;br&gt;
+
+
+## Step 2: Poststratification
+
+Reweight the predictions from the model to your population of interest.
+
+---
+
+
+class: inverse, center, middle
+
+# Example
+
+
+
+---
+
+# Example
+
+Suppose you had to guess the average height of this group of children:
+
+- Marco (male, 72 months old)
+
+- Roberto (male, 54 months old)
+
+- Anna (female, 60 months old)
+
+- Maria (female, 80 months old)
+
+- Luca (male, 36 months old)
+
+--
+
+&lt;br&gt;
+
+### How would you approach this problem?
+
+---
+
+# Step 1: Fit a Model
+
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-2-1.png" width="600" style="display: block; margin: auto;" /&gt;
+
+---
+
+# Step 1: Fit a Model
+
+`$$\text{Height}_i = \beta_0 + \text{Age}_i\beta_{1} + \text{Gender}_i\beta_{2} + \varepsilon_i$$`
+
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-3-1.png" width="600" style="display: block; margin: auto;" /&gt;
+
+---
+
+# Step 1: Fit A Model
+
+`$$\text{Height}_i = \beta_0 + \text{Age}_i\beta_{1} + \text{Gender}_i\beta_{2} + \varepsilon_i$$`
+
+
+```r
+lm1 &lt;- lm(height ~ age + gender, data = d)
+
+lm1$coefficients
+```
+
+```
+(Intercept)         age     genderM 
+ 63.7516508   0.6118978  -0.6610833 
+```
+
+---
+
+# Step 2: Poststratify
+
+`$$\text{Height}_i = 63.75 + \text{Age}_i\times 0.612 - \text{Gender}_i\times 0.661 + \varepsilon_i$$`
+&lt;br&gt;
+
+Now, weight the model's predictions based on the composition of the group:
+
+- Marco (male, 72 months old): 63.75 + 0.612 `\(\times\)` 72 - 0.661 = 107.1
+
+- Roberto (male, 54 months old): 63.75 + 0.612 `\(\times\)` 54 - 0.661 = 96.1
+
+- Anna (female, 60 months old): 63.75 + 0.612 `\(\times\)` 60 = 100.5
+
+- Maria (female, 80 months old): 63.75 + 0.612 `\(\times\)` 80 = 112.7
+
+- Luca (male, 36 months old): 63.75 + 0.612 `\(\times\)` 36 - 0.661 = 85.1
+
+--
+
+&lt;br&gt;
+
+**Predicted average height:** 100.3
+
+---
+
+class: center, middle
+
+# That was MRP!
+
+???
+
+Everything else is refinements: making the first-stage model more complex or different ways of generating the poststratification frame.
+
+---
+
+class: inverse, center, middle
+
+# A Political Science Example
+
+---
+
+
+# A Political Science Example
+
+&lt;img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Defund_the_police.jpg/330px-Defund_the_police.jpg" width="600" style="display: block; margin: auto;" /&gt;
+
+???
+
+Police reform is a contentious political topic in the United States, following a number of high-profile police killings of citizens. One could imagine a research question that was interested in the determinants of, or effects of, changes in public opinion regarding police reform. And because police departments in the United States are administered by local governments rather than the state or national level government, knowing how support varies across small political units would be particularly useful.
+
+Image credit: By Taymaz Valley - https://www.flickr.com/photos/taymazvalley/49974424258, CC BY 2.0, https://commons.wikimedia.org/w/index.php?curid=91013003
+
+---
+
+# A Political Science Example
+
+
+```r
+# load some R libraries we'll need
+library(tidyverse)
+library(here)
+
+# load CES (2020) national-level survey
+load( here( 'data/CES-2020.RData' ) )
+
+names(ces)
+```
+
+```
+ [1] "caseid"             "gender"             "educ"              
+ [4] "race"               "age"                "abb"               
+ [7] "division"           "pew_religimp"       "homeowner"         
+[10] "urban"              "parent"             "military_household"
+[13] "defund_police"      "homicide_rate"      "biden_vote_share"  
+```
+
+```r
+dim(ces)
+```
+
+```
+[1] 55931    15
+```
+
+???
+
+There are roughly 55,000 people in the survey. We know X, Y, and Z individual-level characteristics, plus the state where they live.
+
+---
+
+# Our Target
+
+
+```r
+target &lt;- ces |&gt; 
+  group_by(abb) |&gt; 
+  summarize(truth = mean(defund_police))
+```
+
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-8-1.png" width="600" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## Overfitting vs. Underfitting
+
+
+---
+
+class: inverse, center, middle
+
+# Refinements
+
+---
+
+# Refinements
+
+1. More complex first stage models
+
+2. Synthetic poststratification
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
