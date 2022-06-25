@@ -136,7 +136,7 @@ Suppose you had to guess the average height of this group of children:
 
 # Step 1: Fit a Model
 
-&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-2-1.png" width="600" style="display: block; margin: auto;" /&gt;
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-2-1.png" width="1400" style="display: block; margin: auto;" /&gt;
 
 ---
 
@@ -144,7 +144,9 @@ Suppose you had to guess the average height of this group of children:
 
 `$$\text{Height}_i = \beta_0 + \text{Age}_i\beta_{1} + \text{Gender}_i\beta_{2} + \varepsilon_i$$`
 
-&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-3-1.png" width="600" style="display: block; margin: auto;" /&gt;
+--
+
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-3-1.png" width="1000" style="display: block; margin: auto;" /&gt;
 
 ---
 
@@ -168,26 +170,35 @@ lm1$coefficients
 
 # Step 2: Poststratify
 
-`$$\text{Height}_i = 63.75 + \text{Age}_i\times 0.612 - \text{Gender}_i\times 0.661 + \varepsilon_i$$`
-&lt;br&gt;
+--
 
-Now, weight the model's predictions based on the composition of the group:
-
-- Marco (male, 72 months old): 63.75 + 0.612 `\(\times\)` 72 - 0.661 = 107.1
-
-- Roberto (male, 54 months old): 63.75 + 0.612 `\(\times\)` 54 - 0.661 = 96.1
-
-- Anna (female, 60 months old): 63.75 + 0.612 `\(\times\)` 60 = 100.5
-
-- Maria (female, 80 months old): 63.75 + 0.612 `\(\times\)` 80 = 112.7
-
-- Luca (male, 36 months old): 63.75 + 0.612 `\(\times\)` 36 - 0.661 = 85.1
+Now, take the fitted model and weight its predictions based on the composition of the group.
 
 --
 
 &lt;br&gt;
 
-**Predicted average height:** 100.3
+`$$\text{Height}_i = 63.75 + \text{Age}_i\times 0.612 - \text{Gender}_i\times 0.661 + \varepsilon_i$$`
+
+--
+
+&lt;br&gt;
+
+- Marco (male, 72 months old): 63.75 + 0.612 `\(\times\)` 72 - 0.661 = **107.1**
+
+- Roberto (male, 54 months old): 63.75 + 0.612 `\(\times\)` 54 - 0.661 = **96.1**
+
+- Anna (female, 60 months old): 63.75 + 0.612 `\(\times\)` 60 = **100.5**
+
+- Maria (female, 80 months old): 63.75 + 0.612 `\(\times\)` 80 = **112.7**
+
+- Luca (male, 36 months old): 63.75 + 0.612 `\(\times\)` 36 - 0.661 = **85.1**
+
+--
+
+&lt;br&gt;
+
+Predicted average height: **100.3**
 
 ---
 
@@ -210,7 +221,7 @@ class: inverse, center, middle
 
 # A Political Science Example
 
-&lt;img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Defund_the_police.jpg/330px-Defund_the_police.jpg" width="600" style="display: block; margin: auto;" /&gt;
+&lt;img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Defund_the_police.jpg/330px-Defund_the_police.jpg" width="650" style="display: block; margin: auto;" /&gt;
 
 ???
 
@@ -286,6 +297,68 @@ class: inverse, center, middle
 1. More complex first stage models
 
 2. Synthetic poststratification
+
+
+---
+
+class: inverse, center, middle
+
+# What's Next?
+
+---
+
+# What's Next?
+
+- This is an active area of research.
+
+--
+
+- One promising application: heterogeneous treatment effects in experimental studies [(Gao, Kennedy, and Simpson, 2022)](http://arxiv.org/abs/2102.10003).
+
+--
+
+   - Often the Average Treatment Effect (ATE) is uninteresting.
+   
+   - Fit a model of Conditional Average Treatment Effects (CATEs) by group, then poststratify to the population of interest.
+
+--
+
+- If you'd like more practice with MRP, read through these [MRP Case Studies](https://bookdown.org/jl5522/MRP-case-studies/). 
+
+--
+
+- If you'd like to use MRP in your own work, consider exploring some recent `R` packages, like [`autoMrP`](https://cran.r-project.org/web/packages/autoMrP/index.html).
+
+---
+
+# What's Next?
+
+.pull-left[
+
+<a href="https://xcelab.net/rm/statistical-rethinking/">
+<img src="img/statistical-rethinking.png" width="245px"/>
+</a>
+
+]
+
+.pull-right[
+
+<a href="https://avehtari.github.io/ROS-Examples/">
+<img src="img/ROS_frontcover.png" width="300px"/>
+</a>
+
+]
+
+---
+
+class: center, middle
+
+# Thanks!
+
+
+
+
+
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
 <script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>

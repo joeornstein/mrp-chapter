@@ -14,13 +14,22 @@ output:
 ---
 
 ```{r, echo = FALSE, warning = FALSE, message=FALSE}
-theme_set(theme_minimal(base_size = 16))
-knitr::opts_chunk$set(comment=NA, fig.width=8, fig.height=5, 
+
+knitr::opts_chunk$set(comment=NA, fig.width=8, fig.height=5,
                       fig.align = 'center', out.width = 600,
                       message=FALSE, warning=FALSE, echo=TRUE)
 set.seed(42)
 library(tidyverse)
 library(here)
+theme_set(theme_minimal(base_size = 16))
+
+# custom function to add a hyperlink to images
+image_link <- function(image,url,...){
+  htmltools::a(
+    href=url,
+    htmltools::img(src=image,...)
+    )
+}
 ```
 
 background-image: url(https://new-cdn.mamamia.com.au/mamamia-pwa.appspot.com/cms_images/variations/596x397.3333333333333-789086803473.jpg)
@@ -136,7 +145,7 @@ Suppose you had to guess the average height of this group of children:
 
 # Step 1: Fit a Model
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, out.width=1400}
 d <- UsingR::kid.weights |> 
   mutate(height = height * 2.54)
 
@@ -156,7 +165,9 @@ p
 
 $$\text{Height}_i = \beta_0 + \text{Age}_i\beta_{1} + \text{Gender}_i\beta_{2} + \varepsilon_i$$
 
-```{r, echo = FALSE}
+--
+
+```{r, echo = FALSE, out.width = 1000}
 p + facet_wrap(~gender) +
   geom_smooth(method = 'lm')
 ```
@@ -177,26 +188,35 @@ lm1$coefficients
 
 # Step 2: Poststratify
 
-$$\text{Height}_i = 63.75 + \text{Age}_i\times 0.612 - \text{Gender}_i\times 0.661 + \varepsilon_i$$
-<br>
+--
 
-Now, weight the model's predictions based on the composition of the group:
-
-- Marco (male, 72 months old): 63.75 + 0.612 $\times$ 72 - 0.661 = `r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 72 + lm1$coefficients['genderM']*1, 1)`
-
-- Roberto (male, 54 months old): 63.75 + 0.612 $\times$ 54 - 0.661 = `r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 54 + lm1$coefficients['genderM']*1, 1)`
-
-- Anna (female, 60 months old): 63.75 + 0.612 $\times$ 60 = `r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 60 + lm1$coefficients['genderM']*0, 1)`
-
-- Maria (female, 80 months old): 63.75 + 0.612 $\times$ 80 = `r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 80 + lm1$coefficients['genderM']*0, 1)`
-
-- Luca (male, 36 months old): 63.75 + 0.612 $\times$ 36 - 0.661 = `r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 36 + lm1$coefficients['genderM']*1, 1)`
+Now, take the fitted model and weight its predictions based on the composition of the group.
 
 --
 
 <br>
 
-**Predicted average height:** `r (107.1 + 96.1 + 100.5 + 112.7 + 85.1) / 5`
+$$\text{Height}_i = 63.75 + \text{Age}_i\times 0.612 - \text{Gender}_i\times 0.661 + \varepsilon_i$$
+
+--
+
+<br>
+
+- Marco (male, 72 months old): 63.75 + 0.612 $\times$ 72 - 0.661 = **`r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 72 + lm1$coefficients['genderM']*1, 1)`**
+
+- Roberto (male, 54 months old): 63.75 + 0.612 $\times$ 54 - 0.661 = **`r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 54 + lm1$coefficients['genderM']*1, 1)`**
+
+- Anna (female, 60 months old): 63.75 + 0.612 $\times$ 60 = **`r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 60 + lm1$coefficients['genderM']*0, 1)`**
+
+- Maria (female, 80 months old): 63.75 + 0.612 $\times$ 80 = **`r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 80 + lm1$coefficients['genderM']*0, 1)`**
+
+- Luca (male, 36 months old): 63.75 + 0.612 $\times$ 36 - 0.661 = **`r round(lm1$coefficients['(Intercept)'] + lm1$coefficients['age'] * 36 + lm1$coefficients['genderM']*1, 1)`**
+
+--
+
+<br>
+
+Predicted average height: **`r (107.1 + 96.1 + 100.5 + 112.7 + 85.1) / 5`**
 
 ---
 
@@ -219,7 +239,7 @@ class: inverse, center, middle
 
 # A Political Science Example
 
-```{r, echo = F, fig.width=15}
+```{r, echo = F, out.width=650}
 knitr::include_graphics('https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Defund_the_police.jpg/330px-Defund_the_police.jpg')
 ```
 
@@ -288,3 +308,65 @@ class: inverse, center, middle
 1. More complex first stage models
 
 2. Synthetic poststratification
+
+
+---
+
+class: inverse, center, middle
+
+# What's Next?
+
+---
+
+# What's Next?
+
+- This is an active area of research.
+
+--
+
+- One promising application: heterogeneous treatment effects in experimental studies [(Gao, Kennedy, and Simpson, 2022)](http://arxiv.org/abs/2102.10003).
+
+--
+
+   - Often the Average Treatment Effect (ATE) is uninteresting.
+   
+   - Fit a model of Conditional Average Treatment Effects (CATEs) by group, then poststratify to the population of interest.
+
+--
+
+- If you'd like more practice with MRP, read through these [MRP Case Studies](https://bookdown.org/jl5522/MRP-case-studies/). 
+
+--
+
+- If you'd like to use MRP in your own work, consider exploring some recent `R` packages, like [`autoMrP`](https://cran.r-project.org/web/packages/autoMrP/index.html).
+
+---
+
+# What's Next?
+
+.pull-left[
+
+```{r, echo = FALSE}
+image_link('img/statistical-rethinking.png','https://xcelab.net/rm/statistical-rethinking/',width="245px")
+```
+
+]
+
+.pull-right[
+
+```{r, echo = FALSE}
+image_link('img/ROS_frontcover.png','https://avehtari.github.io/ROS-Examples/',width="300px")
+```
+
+]
+
+---
+
+class: center, middle
+
+# Thanks!
+
+
+
+
+
