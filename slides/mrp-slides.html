@@ -60,7 +60,11 @@ By the end of today's lecture, you will be able to:
 
 All code and data (including these slides) are available on [GitHub](https://github.com/joeornstein/mrp-chapter).
 
-&lt;img src="img/qrcode_github.png" width="600" style="display: block; margin: auto;" /&gt;
+&lt;img src="img/qrcode_github.png" width="500" style="display: block; margin: auto;" /&gt;
+
+???
+
+Pause here. This includes materials from the book chapter as well, though some of the things I'm going to show you today are different than what I focus on in the chapter. In particular, I'll give you a bit more detail on multilevel models, and show you a fully Bayesian implementation. 
 
 ---
 
@@ -249,7 +253,7 @@ library(tidyverse)
 library(here)
 
 # load CES (2020) national-level survey
-load( here( 'data/CES-2020.RData' ) )
+load( here( 'data/CES-2020-All.RData' ) )
 
 names(ces)
 ```
@@ -267,12 +271,12 @@ dim(ces)
 ```
 
 ```
-[1] 55931    15
+[1] 60283    15
 ```
 
 ???
 
-There are roughly 55,000 people in the survey. We know X, Y, and Z individual-level characteristics, plus the state where they live.
+There are roughly 60,000 people in the survey. We know X, Y, and Z individual-level characteristics, plus the state where they live.
 
 ---
 
@@ -282,11 +286,100 @@ There are roughly 55,000 people in the survey. We know X, Y, and Z individual-le
 ```r
 target &lt;- ces |&gt; 
   group_by(abb) |&gt; 
-  summarize(truth = mean(defund_police))
+  summarize(truth = mean(defund_police),
+            num_respondents = n())
 ```
 
 &lt;img src="mrp-slides_files/figure-html/unnamed-chunk-8-1.png" width="600" style="display: block; margin: auto;" /&gt;
 
+---
+
+## Draw a Sample
+
+To test the capabilities of MRP, we're going to draw a sample and try to estimate the state-level means from the representative survey.
+
+
+```r
+ces_sample &lt;- ces |&gt; 
+  slice_sample(n=5000)
+
+dim(ces_sample)
+```
+
+```
+[1] 5000   15
+```
+
+```r
+sample_summary &lt;- ces_sample  |&gt;  
+  group_by(abb) |&gt;  
+  summarize(estimate = mean(defund_police),
+            num_respondents = n())
+
+sample_summary
+```
+
+```
+# A tibble: 48 x 3
+   abb   estimate num_respondents
+   &lt;chr&gt;    &lt;dbl&gt;           &lt;int&gt;
+ 1 AL       0.416             101
+ 2 AR       0.255              51
+ 3 AZ       0.364             118
+ 4 CA       0.490             435
+ 5 CO       0.562              96
+ 6 CT       0.468              62
+ 7 DE       0.448              29
+ 8 FL       0.406             399
+ 9 GA       0.393             183
+10 IA       0.439              41
+# ... with 38 more rows
+```
+
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-10-1.png" width="600" style="display: block; margin: auto;" /&gt;
+
+???
+
+Note that California, with 516 respondents, is very precisely estimated. 
+
+---
+
+class: center, middle, inverse
+
+# Use All The Information You Have!
+
+???
+
+We have more information than this. We know things about the people who live in Delaware, even though we only have 21 respondents from Delaware.
+
+---
+
+## Use All The Information You Have!
+
+--
+
+We only have 10 respondents from North Dakota. So, is that all the information we have about North Dakotans?
+
+--
+
+- **No!**
+
+--
+
+- We also have 16 respondents from *South* Dakota. 
+
+--
+
+- We have thousands of similar respondents (predominantly white, rural, religious) from across the country. 
+
+--
+
+Based on how other, similar respondents answered the police reform question, we can come up with a better estimate about how North Dakotans feel. In a sense, we are "borrowing" information from elsewhere in the survey.
+
+
+???
+
+If you don't know much about the geography of US states, not to worry. You see, South Dakota is directly to the south of North Dakota. And they are very similar states. The only reason they are different states at all is because Republicans were happy to admit two states instead of 1 so they could increase their number of seats in the US Senate. 
 
 ---
 

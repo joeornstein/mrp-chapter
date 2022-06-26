@@ -297,7 +297,7 @@ target <- ces |>
 ```
 
 ```{r, echo = FALSE}
-target |> 
+p <- target |> 
   mutate(conf_low = truth - 1.96*sqrt(truth*(1-truth)/num_respondents),
          conf_high = truth + 1.96*sqrt(truth*(1-truth)/num_respondents)) |> 
   mutate(abb = fct_reorder(abb, truth)) |> 
@@ -307,17 +307,80 @@ target |>
                                xmax = conf_high)) +
   labs(x = 'Percent Who Support Police Reform Policy',
        y = 'State')
+
+p
 ```
 
 ---
 
 ## Draw a Sample
 
-To test the capabilities of MRP, we're going to draw a *biased* sample and try to estimate the state-level means from the representative survey.
+To test the capabilities of MRP, we're going to draw a sample and try to estimate the state-level means from the representative survey.
 
 ```{r}
-load('data/CES-2020-Biased-Sample.RData')
+ces_sample <- ces |> 
+  slice_sample(n=5000)
+
+dim(ces_sample)
+
+sample_summary <- ces_sample  |>  
+  group_by(abb) |>  
+  summarize(estimate = mean(defund_police),
+            num_respondents = n())
+
+sample_summary
 ```
+
+```{r, echo = FALSE}
+p + 
+  geom_point(data = sample_summary,
+             mapping = aes(x=estimate,
+                           y=abb),
+             color = 'green')
+```
+
+???
+
+Note that California, with 516 respondents, is very precisely estimated. 
+
+---
+
+class: center, middle, inverse
+
+# Use All The Information You Have!
+
+???
+
+We have more information than this. We know things about the people who live in Delaware, even though we only have 21 respondents from Delaware.
+
+---
+
+## Use All The Information You Have!
+
+--
+
+We only have 10 respondents from North Dakota. So, is that all the information we have about North Dakotans?
+
+--
+
+- **No!**
+
+--
+
+- We also have 16 respondents from *South* Dakota. 
+
+--
+
+- We have thousands of similar respondents (predominantly white, rural, religious) from across the country. 
+
+--
+
+Based on how other, similar respondents answered the police reform question, we can come up with a better estimate about how North Dakotans feel. In a sense, we are "borrowing" information from elsewhere in the survey.
+
+
+???
+
+If you don't know much about the geography of US states, not to worry. You see, South Dakota is directly to the south of North Dakota. And they are very similar states. The only reason they are different states at all is because Republicans were happy to admit two states instead of 1 so they could increase their number of seats in the US Senate. 
 
 ---
 
