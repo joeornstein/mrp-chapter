@@ -32,3 +32,4 @@ data/raw/
 # latex intermediaries
 springer-template/
 chapter_files/
+_dross/
