@@ -11,6 +11,7 @@
 
 library(tidyverse)
 library(janitor)
+set.seed(42)
 
 ces_raw <- read_csv('data/raw/CES20_Common_OUTPUT_vv.csv') %>% 
   # clean up the names (janitor function)
