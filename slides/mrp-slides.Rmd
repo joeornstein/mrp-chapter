@@ -65,6 +65,21 @@ By the end of today's lecture, you will be able to:
 
 ---
 
+# If you'd like to follow along...
+
+All code and data (including these slides) are available on [GitHub](https://github.com/joeornstein/mrp-chapter).
+
+```{r QR, echo = FALSE, out.width=500}
+knitr::include_graphics('img/qrcode_github.png')
+```
+
+???
+
+Pause here. This includes materials from the book chapter as well, though some of the things I'm going to show you today are different than what I focus on in the chapter. In particular, I'll give you a bit more detail on multilevel models, and show you a fully Bayesian implementation. 
+
+---
+
+
 class: center, inverse, middle
 
 # Causal Inference requires Careful Measurement
@@ -259,7 +274,7 @@ library(tidyverse)
 library(here)
 
 # load CES (2020) national-level survey
-load( here( 'data/CES-2020.RData' ) )
+load( here( 'data/CES-2020-All.RData' ) )
 
 names(ces)
 
@@ -268,7 +283,7 @@ dim(ces)
 
 ???
 
-There are roughly 55,000 people in the survey. We know X, Y, and Z individual-level characteristics, plus the state where they live.
+There are roughly 60,000 people in the survey. We know X, Y, and Z individual-level characteristics, plus the state where they live.
 
 ---
 
@@ -277,18 +292,32 @@ There are roughly 55,000 people in the survey. We know X, Y, and Z individual-le
 ```{r}
 target <- ces |> 
   group_by(abb) |> 
-  summarize(truth = mean(defund_police))
+  summarize(truth = mean(defund_police),
+            num_respondents = n())
 ```
 
 ```{r, echo = FALSE}
 target |> 
+  mutate(conf_low = truth - 1.96*sqrt(truth*(1-truth)/num_respondents),
+         conf_high = truth + 1.96*sqrt(truth*(1-truth)/num_respondents)) |> 
   mutate(abb = fct_reorder(abb, truth)) |> 
   ggplot(mapping = aes(x=truth, y=abb)) +
   geom_point(alpha = 0.7) +
+  geom_linerange(mapping = aes(y = abb, xmin = conf_low,
+                               xmax = conf_high)) +
   labs(x = 'Percent Who Support Police Reform Policy',
        y = 'State')
 ```
 
+---
+
+## Draw a Sample
+
+To test the capabilities of MRP, we're going to draw a *biased* sample and try to estimate the state-level means from the representative survey.
+
+```{r}
+load('data/CES-2020-Biased-Sample.RData')
+```
 
 ---
 

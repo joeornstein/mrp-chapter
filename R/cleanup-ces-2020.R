@@ -5,8 +5,8 @@
 # https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi%3A10.7910/DVN/E9N6PH
 #
 # author: Joe Ornstein
-# date: 2021-10-26
-# version: 0.1
+# date: 2022-06-26
+# version: 0.2
 # ---
 
 library(tidyverse)
@@ -31,6 +31,12 @@ ces <- ces_raw %>%
                           race == 4 ~ 'Asian',
                           TRUE ~ 'Other'),
          age = 2020 - birthyr, 
+         age_cat = case_when(age < 30 ~ '18-29',
+                             age < 40 ~ '30-39',
+                             age < 50 ~ '40-49',
+                             age < 60 ~ '50-59',
+                             age < 70 ~ '60-69',
+                             TRUE ~ '70+'),
          pew_religimp = case_when(pew_religimp == 1 ~ 'Very_important',
                                   pew_religimp == 2 ~ 'Somewhat_important',
                                   pew_religimp == 3 ~ 'Not_too_important',
@@ -91,10 +97,24 @@ states_to_keep <- ces %>%
   filter(n > 500) %>% 
   pull(abb)
 
-ces <- filter(ces, abb %in% states_to_keep)
+ces_33states <- filter(ces, abb %in% states_to_keep)
 
-# drop 198 observations with missing values
+# drop observations with missing values
 ces <- na.omit(ces)
+ces_33states <- na.omit(ces_33states)
 
-# write cleaned dataset to file
-save(ces, file = 'data/CES-2020.RData')
+# draw a biased sample for the slides
+# respondents are younger and more likely to be from Democratic states
+# (for another example see https://bookdown.org/jl5522/MRP-case-studies/introduction-to-mister-p.html)
+ces_biased <- ces |> 
+  slice_sample(n = 5000, 
+               weight_by = I(0.2*biden_vote_share + (age=="18-29")*8 + (age=="30-39")*6 + 
+                              (age=="40-49")*4 + (age=="50-59")*2 + 
+                              (age=="60-69")*1 + (age=="70+")*0.5)
+  )
+
+
+# write cleaned datasets to file
+save(ces_33states, file = 'data/CES-2020.RData')
+save(ces, file = 'data/CES-2020-All.RData')
+save(ces_biased, file = 'data/CES-2020-Biased-Sample.RData')
