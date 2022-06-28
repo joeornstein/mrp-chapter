@@ -4,7 +4,7 @@
     <title>Getting the Most Out of Surveys</title>
     <meta charset="utf-8" />
     <meta name="author" content="Joseph T. Ornstein" />
-    <script src="libs/header-attrs-2.11/header-attrs.js"></script>
+    <script src="libs/header-attrs-2.14/header-attrs.js"></script>
     <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
     <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
   </head>
@@ -23,36 +23,66 @@ class: center, middle, inverse, title-slide
 
 
 
-background-image: url(https://new-cdn.mamamia.com.au/mamamia-pwa.appspot.com/cms_images/variations/596x397.3333333333333-789086803473.jpg)
-background-size: contain
+# A Research Question
+
+&lt;img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Defund_the_police.jpg/330px-Defund_the_police.jpg" width="650" style="display: block; margin: auto;" /&gt;
+
+--
+
+If you wanted to know how popular this movement was in various US cities, how would you go about figuring it out?
+
+???
+
+Police reform is a contentious political topic in the United States, following a number of high-profile police killings of citizens. One could imagine a research question that was interested in the determinants of, or effects of, changes in public opinion regarding police reform. And because police departments in the United States are administered by local governments rather than the state or national level government, knowing how support varies across small political units would be particularly useful.
+
+Famously, protestors are not a representative sample of the population. Estimating support for this policy is therefore quite tricky.
+
+Image credit: By Taymaz Valley - https://www.flickr.com/photos/taymazvalley/49974424258, CC BY 2.0, https://commons.wikimedia.org/w/index.php?curid=91013003
+
+---
+
+# The Problem
+
+- The United States is big. 
+
+  - There are 19,495 cities, towns, and villages, spread across 50 states.
+
+--
+
+- Large nationally-representative surveys are unlikely to give us representative samples in small areas.
+
+--
+
+- Without good measures, we can't even begin to ask causal questions!
 
 ---
 
 class: inverse, center, middle
 
-# Overview
+# What We'll Do
 
 ---
 
-# Overview
+# What We'll Do
 
-By the end of today's lecture, you will be able to:
+Today, we'll learn how to address this problem with Multilevel Regression and Poststratification (MRP).
 
---
-
-- Explain the motivation for MRP and the circumstances under which it is appropriate to implement.
+By the end of the lecture, you'll be able to:
 
 --
 
-- Describe the two steps in producing MRP estimates: model fitting and postsratification.
+- Describe the two steps for producing MRP estimates.
 
 --
 
-- Generate MRP estimates by adapting the provided sample code.
+- Generate MRP estimates by adapting the sample code.
 
 --
 
-- Implement more sophisticated variants of MRP, including stacked regression and postratification (SRP) or multilevel regression and synthetic poststratification (MrsP) where appropriate.
+- Explain when to use more sophisticated variants of MRP, including:
+
+  - Stacked regression and postratification (SRP)
+  - Synthetic poststratification (MrsP)
 
 ---
 
@@ -68,7 +98,6 @@ Pause here. This includes materials from the book chapter as well, though some o
 
 ---
 
-
 class: center, inverse, middle
 
 # Causal Inference requires Careful Measurement
@@ -78,14 +107,13 @@ class: center, inverse, middle
 
 ## Causal Inference requires Careful Measurement
 
-- Replication crisis in psychology and other social sciences .tiny[(e.g. Button 2010)]
+- Replication crisis in psychology the social sciences (e.g. Button 2010)
 
 - Small sample sizes and noisy measurement create false positives
 
 ???
 
 - May want Conditional Average Treatment Effects (CATEs)
-
 
 ---
 
@@ -116,12 +144,9 @@ Reweight the predictions from the model to your population of interest.
 
 ---
 
-
 class: inverse, center, middle
 
 # Example
-
-
 
 ---
 
@@ -149,7 +174,7 @@ Suppose you had to guess the average height of this group of children:
 
 # Step 1: Fit a Model
 
-&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-2-1.png" width="1400" style="display: block; margin: auto;" /&gt;
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-3-1.png" width="1400" style="display: block; margin: auto;" /&gt;
 
 ---
 
@@ -159,7 +184,7 @@ Suppose you had to guess the average height of this group of children:
 
 --
 
-&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-3-1.png" width="1000" style="display: block; margin: auto;" /&gt;
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-4-1.png" width="1000" style="display: block; margin: auto;" /&gt;
 
 ---
 
@@ -225,26 +250,11 @@ Everything else is refinements: making the first-stage model more complex or dif
 
 ---
 
-class: inverse, center, middle
 
-# A Political Science Example
 
 ---
 
-
-# A Political Science Example
-
-&lt;img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Defund_the_police.jpg/330px-Defund_the_police.jpg" width="650" style="display: block; margin: auto;" /&gt;
-
-???
-
-Police reform is a contentious political topic in the United States, following a number of high-profile police killings of citizens. One could imagine a research question that was interested in the determinants of, or effects of, changes in public opinion regarding police reform. And because police departments in the United States are administered by local governments rather than the state or national level government, knowing how support varies across small political units would be particularly useful.
-
-Image credit: By Taymaz Valley - https://www.flickr.com/photos/taymazvalley/49974424258, CC BY 2.0, https://commons.wikimedia.org/w/index.php?curid=91013003
-
----
-
-# A Political Science Example
+# The Data
 
 
 ```r

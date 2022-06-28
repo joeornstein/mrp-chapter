@@ -32,36 +32,92 @@ image_link <- function(image,url,...){
 }
 ```
 
-background-image: url(https://new-cdn.mamamia.com.au/mamamia-pwa.appspot.com/cms_images/variations/596x397.3333333333333-789086803473.jpg)
-background-size: contain
+# A Research Question
+
+```{r, echo = F, out.width=650}
+knitr::include_graphics('https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Defund_the_police.jpg/330px-Defund_the_police.jpg')
+```
+
+--
+
+If you wanted to know how popular this movement was in various US cities, how would you go about figuring it out?
+
+???
+
+Police reform is a contentious political topic in the United States, following a number of high-profile police killings of citizens. One could imagine a research question that was interested in the determinants of, or effects of, changes in public opinion regarding police reform. And because police departments in the United States are administered by local governments rather than the state or national level government, knowing how support varies across small political units would be particularly useful.
+
+Famously, protestors are not a representative sample of the population. Estimating support for this policy is therefore quite tricky.
+
+Image credit: By Taymaz Valley - https://www.flickr.com/photos/taymazvalley/49974424258, CC BY 2.0, https://commons.wikimedia.org/w/index.php?curid=91013003
+
+---
+
+# The Problem
+
+--
+
+- The United States is big. 
+
+  - There are 19,495 cities, towns, and villages, spread across 50 states.
+
+--
+
+- Conducting many local-level surveys is prohibitively costly.
+
+--
+
+- Large nationally-representative surveys are unlikely to give us representative samples in small areas.
+
+--
+
+<br>
+
+- Without good measures, we can't even begin to ask causal questions!
 
 ---
 
 class: inverse, center, middle
 
-# Overview
+# Multilevel Regression and Poststratification
 
 ---
 
-# Overview
-
-By the end of today's lecture, you will be able to:
+# Multilevel Regression and Poststratification
 
 --
 
-- Explain the motivation for MRP and the circumstances under which it is appropriate to implement.
+Our approach today:
 
 --
 
-- Describe the two steps in producing MRP estimates: model fitting and postsratification.
+- Take a large, nationally representative survey.
 
 --
 
-- Generate MRP estimates by adapting the provided sample code.
+- Determine what variables predict support for police reform.
 
 --
 
-- Implement more sophisticated variants of MRP, including stacked regression and postratification (SRP) or multilevel regression and synthetic poststratification (MrsP) where appropriate.
+- Estimate support for police reform using those variables.
+
+--
+
+By the end of the lecture, you'll be able to:
+
+--
+
+- Describe the two steps in MRP
+
+--
+
+- Generate MRP estimates using sample code
+
+--
+
+- Explain when to use more sophisticated variants of MRP, including:
+
+  - Stacked regression and postratification (SRP)
+  - Synthetic poststratification (MrsP)
 
 ---
 
@@ -79,17 +135,42 @@ Pause here. This includes materials from the book chapter as well, though some o
 
 ---
 
-
 class: center, inverse, middle
 
-# Causal Inference requires Careful Measurement
+# Let's Take A Look At Some Data
 
 
 ---
 
-## Causal Inference requires Careful Measurement
+# The Cooperative Election Study (CES)
 
-- Replication crisis in psychology and other social sciences .tiny[(e.g. Button 2010)]
+```{r}
+# load some R libraries we'll need
+library(tidyverse)
+
+# load CES (2020) national-level survey
+load( 'data/CES-2020-All.RData' )
+
+names(ces)
+
+dim(ces)
+```
+
+???
+
+There are roughly 60,000 people in the survey. We know X, Y, and Z individual-level characteristics, plus the state where they live.
+
+---
+
+
+
+
+
+---
+
+## Data
+
+- Replication crisis in psychology the social sciences (e.g. Button 2010)
 
 - Small sample sizes and noisy measurement create false positives
 
@@ -97,8 +178,8 @@ class: center, inverse, middle
 
 - May want Conditional Average Treatment Effects (CATEs)
 
-
 ---
+
 
 class: inverse, center, middle
 
@@ -127,12 +208,9 @@ Reweight the predictions from the model to your population of interest.
 
 ---
 
-
 class: inverse, center, middle
 
 # Example
-
-
 
 ---
 
@@ -245,47 +323,8 @@ Everything else is refinements: making the first-stage model more complex or dif
 
 ---
 
-class: inverse, center, middle
-
-# A Political Science Example
-
----
 
 
-# A Political Science Example
-
-```{r, echo = F, out.width=650}
-knitr::include_graphics('https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Defund_the_police.jpg/330px-Defund_the_police.jpg')
-```
-
-???
-
-Police reform is a contentious political topic in the United States, following a number of high-profile police killings of citizens. One could imagine a research question that was interested in the determinants of, or effects of, changes in public opinion regarding police reform. And because police departments in the United States are administered by local governments rather than the state or national level government, knowing how support varies across small political units would be particularly useful.
-
-Image credit: By Taymaz Valley - https://www.flickr.com/photos/taymazvalley/49974424258, CC BY 2.0, https://commons.wikimedia.org/w/index.php?curid=91013003
-
----
-
-# A Political Science Example
-
-```{r}
-# load some R libraries we'll need
-library(tidyverse)
-library(here)
-
-# load CES (2020) national-level survey
-load( here( 'data/CES-2020-All.RData' ) )
-
-names(ces)
-
-dim(ces)
-```
-
-???
-
-There are roughly 60,000 people in the survey. We know X, Y, and Z individual-level characteristics, plus the state where they live.
-
----
 
 # Our Target
 
