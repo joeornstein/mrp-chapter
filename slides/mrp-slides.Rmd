@@ -98,7 +98,7 @@ Our approach today:
 
 --
 
-- Estimate support for police reform using those variables.
+- Estimate support in small areas using those variables.
 
 --
 
@@ -162,24 +162,112 @@ There are roughly 60,000 people in the survey. We know X, Y, and Z individual-le
 
 ---
 
+# Our Target
 
+Because the CES sample is so large, we can get reasonably precise estimates at the state level.
 
+```{r}
+target <- ces |> 
+  group_by(abb) |> 
+  summarize(pct_support = mean(defund_police),
+            num_respondents = n())
 
+head(target)
+```
 
 ---
 
-## Data
+# Our Target
 
-- Replication crisis in psychology the social sciences (e.g. Button 2010)
+```{r, echo = FALSE, out.width=1000}
+p <- target |> 
+  mutate(conf_low = pct_support - 1.96*sqrt(pct_support*(1-pct_support)/num_respondents),
+         conf_high = pct_support + 1.96*sqrt(pct_support*(1-pct_support)/num_respondents)) |> 
+  mutate(abb = fct_reorder(abb, pct_support)) |> 
+  ggplot(mapping = aes(x=pct_support, y=abb)) +
+  geom_point(alpha = 0.7) +
+  geom_linerange(mapping = aes(y = abb, xmin = conf_low,
+                               xmax = conf_high)) +
+  labs(x = 'Percent Who Support Police Reform Policy',
+       y = 'State')
 
-- Small sample sizes and noisy measurement create false positives
+p
+```
+
+---
+
+## Draw a Sample
+
+To test the capabilities of MRP, we're going to draw a smaller sample and use it to estimate the state-level means from the representative survey.
+
+```{r}
+ces_sample <- ces |> 
+  slice_sample(n=5000)
+
+sample_summary <- ces_sample  |>  
+  group_by(abb) |>  
+  summarize(estimate = mean(defund_police),
+            num_respondents = n())
+
+head(sample_summary)
+```
+
+---
+
+## Draw a Sample
+
+```{r, echo = FALSE}
+p + 
+  geom_point(data = sample_summary,
+             mapping = aes(x=estimate,
+                           y=abb),
+             color = 'green')
+```
 
 ???
 
-- May want Conditional Average Treatment Effects (CATEs)
+Note that California, with 516 respondents, is very precisely estimated. 
 
 ---
 
+class: center, middle, inverse
+
+# Use All The Information You Have!
+
+???
+
+We have more information than this. We know things about the people who live in Delaware, even though we only have 21 respondents from Delaware.
+
+---
+
+## Use All The Information You Have!
+
+--
+
+We only have 10 respondents from North Dakota. So, is that all the information we have about North Dakotans?
+
+--
+
+- **No!**
+
+--
+
+- We also have 16 respondents from *South* Dakota. 
+
+--
+
+- We have thousands of similar respondents (predominantly white, rural, religious) from across the country. 
+
+--
+
+Based on how other, similar respondents answered the police reform question, we can come up with a better estimate about how North Dakotans feel. In a sense, we are "borrowing" information from elsewhere in the survey.
+
+
+???
+
+If you don't know much about the geography of US states, not to worry. You see, South Dakota is directly to the south of North Dakota. And they are very similar states. The only reason they are different states at all is because Republicans were happy to admit two states instead of 1 so they could increase their number of seats in the US Senate. 
+
+---
 
 class: inverse, center, middle
 
@@ -323,103 +411,17 @@ Everything else is refinements: making the first-stage model more complex or dif
 
 ---
 
+class: inverse, center, middle
 
+# Back To Our Policy Example
 
+---
 
-# Our Target
+# Step 1: Fit a Model
 
 ```{r}
-target <- ces |> 
-  group_by(abb) |> 
-  summarize(truth = mean(defund_police),
-            num_respondents = n())
+names(ces_sample)
 ```
-
-```{r, echo = FALSE}
-p <- target |> 
-  mutate(conf_low = truth - 1.96*sqrt(truth*(1-truth)/num_respondents),
-         conf_high = truth + 1.96*sqrt(truth*(1-truth)/num_respondents)) |> 
-  mutate(abb = fct_reorder(abb, truth)) |> 
-  ggplot(mapping = aes(x=truth, y=abb)) +
-  geom_point(alpha = 0.7) +
-  geom_linerange(mapping = aes(y = abb, xmin = conf_low,
-                               xmax = conf_high)) +
-  labs(x = 'Percent Who Support Police Reform Policy',
-       y = 'State')
-
-p
-```
-
----
-
-## Draw a Sample
-
-To test the capabilities of MRP, we're going to draw a sample and try to estimate the state-level means from the representative survey.
-
-```{r}
-ces_sample <- ces |> 
-  slice_sample(n=5000)
-
-dim(ces_sample)
-
-sample_summary <- ces_sample  |>  
-  group_by(abb) |>  
-  summarize(estimate = mean(defund_police),
-            num_respondents = n())
-
-sample_summary
-```
-
-```{r, echo = FALSE}
-p + 
-  geom_point(data = sample_summary,
-             mapping = aes(x=estimate,
-                           y=abb),
-             color = 'green')
-```
-
-???
-
-Note that California, with 516 respondents, is very precisely estimated. 
-
----
-
-class: center, middle, inverse
-
-# Use All The Information You Have!
-
-???
-
-We have more information than this. We know things about the people who live in Delaware, even though we only have 21 respondents from Delaware.
-
----
-
-## Use All The Information You Have!
-
---
-
-We only have 10 respondents from North Dakota. So, is that all the information we have about North Dakotans?
-
---
-
-- **No!**
-
---
-
-- We also have 16 respondents from *South* Dakota. 
-
---
-
-- We have thousands of similar respondents (predominantly white, rural, religious) from across the country. 
-
---
-
-Based on how other, similar respondents answered the police reform question, we can come up with a better estimate about how North Dakotans feel. In a sense, we are "borrowing" information from elsewhere in the survey.
-
-
-???
-
-If you don't know much about the geography of US states, not to worry. You see, South Dakota is directly to the south of North Dakota. And they are very similar states. The only reason they are different states at all is because Republicans were happy to admit two states instead of 1 so they could increase their number of seats in the US Senate. 
 
 ---
 

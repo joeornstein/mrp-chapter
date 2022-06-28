@@ -43,9 +43,15 @@ Image credit: By Taymaz Valley - https://www.flickr.com/photos/taymazvalley/4997
 
 # The Problem
 
+--
+
 - The United States is big. 
 
   - There are 19,495 cities, towns, and villages, spread across 50 states.
+
+--
+
+- Conducting many local-level surveys is prohibitively costly.
 
 --
 
@@ -53,29 +59,47 @@ Image credit: By Taymaz Valley - https://www.flickr.com/photos/taymazvalley/4997
 
 --
 
+&lt;br&gt;
+
 - Without good measures, we can't even begin to ask causal questions!
 
 ---
 
 class: inverse, center, middle
 
-# What We'll Do
+# Multilevel Regression and Poststratification
 
 ---
 
-# What We'll Do
+# Multilevel Regression and Poststratification
 
-Today, we'll learn how to address this problem with Multilevel Regression and Poststratification (MRP).
+--
+
+Our approach today:
+
+--
+
+- Take a large, nationally representative survey.
+
+--
+
+- Determine what variables predict support for police reform.
+
+--
+
+- Estimate support in small areas using those variables.
+
+--
 
 By the end of the lecture, you'll be able to:
 
 --
 
-- Describe the two steps for producing MRP estimates.
+- Describe the two steps in MRP
 
 --
 
-- Generate MRP estimates by adapting the sample code.
+- Generate MRP estimates using sample code
 
 --
 
@@ -100,12 +124,134 @@ Pause here. This includes materials from the book chapter as well, though some o
 
 class: center, inverse, middle
 
-# Causal Inference requires Careful Measurement
+# Let's Take A Look At Some Data
 
 
 ---
 
-## Causal Inference requires Careful Measurement
+# The Cooperative Election Study (CES)
+
+
+```r
+# load some R libraries we'll need
+library(tidyverse)
+
+# load CES (2020) national-level survey
+load( 'data/CES-2020-All.RData' )
+
+names(ces)
+```
+
+```
+ [1] "caseid"             "gender"             "educ"              
+ [4] "race"               "age"                "abb"               
+ [7] "division"           "pew_religimp"       "homeowner"         
+[10] "urban"              "parent"             "military_household"
+[13] "defund_police"      "homicide_rate"      "biden_vote_share"  
+```
+
+```r
+dim(ces)
+```
+
+```
+[1] 60283    15
+```
+
+???
+
+There are roughly 60,000 people in the survey. We know X, Y, and Z individual-level characteristics, plus the state where they live.
+
+---
+
+# Our Target
+
+Because the CES sample is so large, we can get reasonably precise estimates at the state level.
+
+
+```r
+target &lt;- ces |&gt; 
+  group_by(abb) |&gt; 
+  summarize(pct_support = mean(defund_police),
+            num_respondents = n())
+
+head(target)
+```
+
+```
+# A tibble: 6 x 3
+  abb   pct_support num_respondents
+  &lt;chr&gt;       &lt;dbl&gt;           &lt;int&gt;
+1 AL          0.374             943
+2 AR          0.403             534
+3 AZ          0.393            1454
+4 CA          0.480            5010
+5 CO          0.467            1059
+6 CT          0.405             639
+```
+
+---
+
+# Our Target
+
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-5-1.png" width="1000" style="display: block; margin: auto;" /&gt;
+
+---
+
+## Draw a Sample
+
+To test the capabilities of MRP, we're going to draw a sample and try to estimate the state-level means from the representative survey.
+
+
+```r
+ces_sample &lt;- ces |&gt; 
+  slice_sample(n=5000)
+
+dim(ces_sample)
+```
+
+```
+[1] 5000   15
+```
+
+```r
+sample_summary &lt;- ces_sample  |&gt;  
+  group_by(abb) |&gt;  
+  summarize(estimate = mean(defund_police),
+            num_respondents = n())
+
+sample_summary
+```
+
+```
+# A tibble: 48 x 3
+   abb   estimate num_respondents
+   &lt;chr&gt;    &lt;dbl&gt;           &lt;int&gt;
+ 1 AL       0.416             101
+ 2 AR       0.255              51
+ 3 AZ       0.364             118
+ 4 CA       0.490             435
+ 5 CO       0.562              96
+ 6 CT       0.468              62
+ 7 DE       0.448              29
+ 8 FL       0.406             399
+ 9 GA       0.393             183
+10 IA       0.439              41
+# ... with 38 more rows
+```
+
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-7-1.png" width="600" style="display: block; margin: auto;" /&gt;
+
+???
+
+Note that California, with 516 respondents, is very precisely estimated. 
+
+---
+
+
+---
+
+## Data
 
 - Replication crisis in psychology the social sciences (e.g. Button 2010)
 
@@ -116,6 +262,7 @@ class: center, inverse, middle
 - May want Conditional Average Treatment Effects (CATEs)
 
 ---
+
 
 class: inverse, center, middle
 
@@ -174,7 +321,7 @@ Suppose you had to guess the average height of this group of children:
 
 # Step 1: Fit a Model
 
-&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-3-1.png" width="1400" style="display: block; margin: auto;" /&gt;
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-8-1.png" width="1400" style="display: block; margin: auto;" /&gt;
 
 ---
 
@@ -184,7 +331,7 @@ Suppose you had to guess the average height of this group of children:
 
 --
 
-&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-4-1.png" width="1000" style="display: block; margin: auto;" /&gt;
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-9-1.png" width="1000" style="display: block; margin: auto;" /&gt;
 
 ---
 
@@ -252,107 +399,6 @@ Everything else is refinements: making the first-stage model more complex or dif
 
 
 
----
-
-# The Data
-
-
-```r
-# load some R libraries we'll need
-library(tidyverse)
-library(here)
-
-# load CES (2020) national-level survey
-load( here( 'data/CES-2020-All.RData' ) )
-
-names(ces)
-```
-
-```
- [1] "caseid"             "gender"             "educ"              
- [4] "race"               "age"                "abb"               
- [7] "division"           "pew_religimp"       "homeowner"         
-[10] "urban"              "parent"             "military_household"
-[13] "defund_police"      "homicide_rate"      "biden_vote_share"  
-```
-
-```r
-dim(ces)
-```
-
-```
-[1] 60283    15
-```
-
-???
-
-There are roughly 60,000 people in the survey. We know X, Y, and Z individual-level characteristics, plus the state where they live.
-
----
-
-# Our Target
-
-
-```r
-target &lt;- ces |&gt; 
-  group_by(abb) |&gt; 
-  summarize(truth = mean(defund_police),
-            num_respondents = n())
-```
-
-&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-8-1.png" width="600" style="display: block; margin: auto;" /&gt;
-
----
-
-## Draw a Sample
-
-To test the capabilities of MRP, we're going to draw a sample and try to estimate the state-level means from the representative survey.
-
-
-```r
-ces_sample &lt;- ces |&gt; 
-  slice_sample(n=5000)
-
-dim(ces_sample)
-```
-
-```
-[1] 5000   15
-```
-
-```r
-sample_summary &lt;- ces_sample  |&gt;  
-  group_by(abb) |&gt;  
-  summarize(estimate = mean(defund_police),
-            num_respondents = n())
-
-sample_summary
-```
-
-```
-# A tibble: 48 x 3
-   abb   estimate num_respondents
-   &lt;chr&gt;    &lt;dbl&gt;           &lt;int&gt;
- 1 AL       0.416             101
- 2 AR       0.255              51
- 3 AZ       0.364             118
- 4 CA       0.490             435
- 5 CO       0.562              96
- 6 CT       0.468              62
- 7 DE       0.448              29
- 8 FL       0.406             399
- 9 GA       0.393             183
-10 IA       0.439              41
-# ... with 38 more rows
-```
-
-&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-10-1.png" width="600" style="display: block; margin: auto;" /&gt;
-
-???
-
-Note that California, with 516 respondents, is very precisely estimated. 
-
----
 
 class: center, middle, inverse
 

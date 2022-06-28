@@ -66,7 +66,7 @@ ces <- ces %>%
   left_join(state_names, by = 'fips') %>% 
   # select the variables we want to keep in the
   # cleaned up dataset
-  select(caseid, gender, educ, race, age, abb, division,
+  select(caseid, gender, educ, race, age, age_cat, abb, division,
          pew_religimp, homeowner, urban, parent, 
          military_household, defund_police)
 
