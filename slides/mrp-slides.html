@@ -452,11 +452,9 @@ names(ces_sample)
 model1 &lt;- glm(defund_police ~ age_cat + pew_religimp,
               family = 'binomial',
               data = ces_sample)
-
-modelplot(model1)
 ```
 
-&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-12-1.png" width="600" style="display: block; margin: auto;" /&gt;
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-13-1.png" width="600" style="display: block; margin: auto;" /&gt;
 
 ---
 
@@ -469,26 +467,31 @@ First, create a *poststratification frame*, which counts every possible combinat
 psframe &lt;- ces |&gt; 
   count(abb, age_cat, pew_religimp)
 
-head(psframe)
+psframe
 ```
 
 ```
-# A tibble: 6 x 4
-  abb   age_cat pew_religimp             n
-  &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;                &lt;int&gt;
-1 AL    18-29   Not_at_all_important    35
-2 AL    18-29   Not_too_important       30
-3 AL    18-29   Somewhat_important      70
-4 AL    18-29   Very_important          70
-5 AL    30-39   Not_at_all_important    36
-6 AL    30-39   Not_too_important       19
+# A tibble: 1,150 x 4
+   abb   age_cat pew_religimp             n
+   &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;                &lt;int&gt;
+ 1 AL    18-29   Not_at_all_important    35
+ 2 AL    18-29   Not_too_important       30
+ 3 AL    18-29   Somewhat_important      70
+ 4 AL    18-29   Very_important          70
+ 5 AL    30-39   Not_at_all_important    36
+ 6 AL    30-39   Not_too_important       19
+ 7 AL    30-39   Somewhat_important      34
+ 8 AL    30-39   Very_important          82
+ 9 AL    40-49   Not_at_all_important    29
+10 AL    40-49   Not_too_important       13
+# ... with 1,140 more rows
 ```
 
 --
 
-**NOTE**: For most applications, you will want to compute the poststratification frame from census data, not survey data.
-
 ???
+
+**NOTE**: For most applications, you will want to compute the poststratification frame from census data, not survey data.
 
 Because you want to know the composition of the general population, not just the composition of your survey sample.
 
@@ -502,19 +505,24 @@ Next, we estimate the probability that each group in the poststratification fram
 ```r
 psframe$predicted_probability &lt;- predict(model1, psframe, type = 'response')
 
-head(psframe)
+psframe
 ```
 
 ```
-# A tibble: 6 x 5
-  abb   age_cat pew_religimp             n predicted_probability
-  &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;                &lt;int&gt;                 &lt;dbl&gt;
-1 AL    18-29   Not_at_all_important    35                 0.762
-2 AL    18-29   Not_too_important       30                 0.615
-3 AL    18-29   Somewhat_important      70                 0.526
-4 AL    18-29   Very_important          70                 0.411
-5 AL    30-39   Not_at_all_important    36                 0.750
-6 AL    30-39   Not_too_important       19                 0.600
+# A tibble: 1,150 x 5
+   abb   age_cat pew_religimp             n predicted_probability
+   &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;                &lt;int&gt;                 &lt;dbl&gt;
+ 1 AL    18-29   Not_at_all_important    35                 0.762
+ 2 AL    18-29   Not_too_important       30                 0.615
+ 3 AL    18-29   Somewhat_important      70                 0.526
+ 4 AL    18-29   Very_important          70                 0.411
+ 5 AL    30-39   Not_at_all_important    36                 0.750
+ 6 AL    30-39   Not_too_important       19                 0.600
+ 7 AL    30-39   Somewhat_important      34                 0.510
+ 8 AL    30-39   Very_important          82                 0.395
+ 9 AL    40-49   Not_at_all_important    29                 0.660
+10 AL    40-49   Not_too_important       13                 0.492
+# ... with 1,140 more rows
 ```
 
 ---
@@ -548,7 +556,7 @@ head(mrp)
 
 # Compare MRP and Sample Means
 
-&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-16-1.png" width="800" style="display: block; margin: auto;" /&gt;
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-17-1.png" width="800" style="display: block; margin: auto;" /&gt;
 
 ---
 
@@ -562,8 +570,40 @@ class: center, middle, inverse
 
 
 ```r
-model2 &lt;- glm(defund_police ~ age_cat + pew_religimp + gender + race + abb, data = ces_sample)
+model2 &lt;- glm(defund_police ~ age_cat + pew_religimp + gender +
+                race + urban + abb + 
+                biden_vote_share +
+                homicide_rate, 
+              data = ces_sample)
 ```
+
+---
+
+# Why not make the model even better??
+
+
+```r
+psframe &lt;- ces |&gt; 
+  count(abb, age_cat, pew_religimp, 
+        gender, race, urban,
+        biden_vote_share, homicide_rate)
+
+psframe$predicted_probability &lt;- predict(model2, psframe, type = 'response')
+
+mrp2 &lt;- psframe |&gt; 
+  group_by(abb) |&gt; 
+  summarize(estimate = weighted.mean(predicted_probability, n))
+```
+
+---
+
+# Why not make the model even better??
+
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-20-1.png" width="800" style="display: block; margin: auto;" /&gt;
+
+--
+
+Wait. What happened?
 
 ---
 
@@ -578,37 +618,99 @@ class: center, middle, inverse
 --
 
 - A model with too few parameters will not accurately predict the outcome. 
+
   - Such a model is *underfit*.
   
 --
   
 - But a model with too many parameters is a problem as well.
-  - It captures so much in-sample variation that it fails fails to borrow information from across groups. 
+
+  - It captures so much in-sample variation that it fails fails to serve its purpose: borrowing information from one group to make inferences about another. 
+  
   - Such a model is *overfit*. 
 
 --
 
 To make good predictions, you want a model that is between these two extremes!
 
+???
+
+The reason why we fit a model in the first place was so we could learn something about North Dakota from the people in South Dakota. But if North Dakota and South Dakota both have their own individual parameters, that's the model's way of saying "North Dakota and South Dakota are different entities, and I can't learn anything about South Dakota from North Dakota, or vice versa". 
+
 ---
 
 class: center, middle, inverse
 
-
+# Regularization
 
 ---
+
+# Regularization
+
+--
+
+- Regularization is the process of making your models a bit *worse* at fitting your data, so they avoid overfitting and do a better job at predicting out of sample.
+
+--
+
+- One approach to regularization is [multilevel modeling](https://bookdown.org/jl5522/MRP-case-studies/).
+
+--
+
+- ...but I'm going to show you LASSO, because it's slightly easier to grasp in a single lecture. 
+
+---
+
+## Fit a regularized model
+
+
+```r
+library(tidymodels)
+
+model3 &lt;- logistic_reg(penalty = 0.01, mixture = 1) |&gt;
+  set_engine('glmnet') |&gt;
+  fit(formula = factor(defund_police) ~ age_cat + 
+        pew_religimp + gender +
+                race + urban + abb + 
+                biden_vote_share +
+                homicide_rate,
+      data = ces_sample)
+```
+
+---
+
+## Poststratify the Regularized Model
+
+
+```r
+psframe &lt;- psframe |&gt; 
+  bind_cols(predict(model3, psframe, type = 'prob'))
+
+mrp3 &lt;- psframe |&gt; 
+  group_by(abb) |&gt; 
+  summarize(estimate = weighted.mean(.pred_1, n))
+```
+
+---
+
+## Compare Sample Means with Estimates from Regularized Model
+
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-23-1.png" width="800" style="display: block; margin: auto;" /&gt;
+
+---
+
 
 class: inverse, center, middle
 
-# Refinements
+# Extensions
 
 ---
 
-# Refinements
+# Extensions
 
-1. More complex first stage models
+1. Stacked Regression and Poststratification (Ornstein, 2020)
 
-2. Synthetic poststratification
+2. Synthetic poststratification (Leemann &amp; Wasserfallen, 2017)
 
 
 ---

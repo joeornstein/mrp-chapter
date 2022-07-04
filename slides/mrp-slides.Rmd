@@ -227,7 +227,7 @@ p +
   geom_point(data = sample_summary,
              mapping = aes(x=estimate,
                            y=abb),
-             color = 'green')
+             color = 'red')
 ```
 
 ???
@@ -441,8 +441,11 @@ names(ces_sample)
 model1 <- glm(defund_police ~ age_cat + pew_religimp,
               family = 'binomial',
               data = ces_sample)
+```
 
-modelplot(model1)
+```{r, echo = FALSE}
+modelplot(model1) +
+  theme_minimal(base_size = 16)
 ```
 
 ---
@@ -455,14 +458,14 @@ First, create a *poststratification frame*, which counts every possible combinat
 psframe <- ces |> 
   count(abb, age_cat, pew_religimp)
 
-head(psframe)
+psframe
 ```
 
 --
 
-**NOTE**: For most applications, you will want to compute the poststratification frame from census data, not survey data.
-
 ???
+
+**NOTE**: For most applications, you will want to compute the poststratification frame from census data, not survey data.
 
 Because you want to know the composition of the general population, not just the composition of your survey sample.
 
@@ -475,7 +478,7 @@ Next, we estimate the probability that each group in the poststratification fram
 ```{r}
 psframe$predicted_probability <- predict(model1, psframe, type = 'response')
 
-head(psframe)
+psframe
 ```
 
 ---
@@ -510,7 +513,7 @@ p <- target |>
   geom_point(data = sample_summary,
              mapping = aes(x=estimate,
                            y=abb),
-             color = 'green') +
+             color = 'red') +
   geom_point(data = mrp,
              mapping = aes(x=estimate,
                            y=abb),
@@ -531,8 +534,61 @@ class: center, middle, inverse
 # Why not make the model even better??
 
 ```{r}
-model2 <- glm(defund_police ~ age_cat + pew_religimp + gender + race + abb, data = ces_sample)
+model2 <- glm(defund_police ~ age_cat + pew_religimp + gender +
+                race + urban + abb + 
+                biden_vote_share +
+                homicide_rate, 
+              data = ces_sample)
 ```
+
+---
+
+# Why not make the model even better??
+
+```{r}
+psframe <- ces |> 
+  count(abb, age_cat, pew_religimp, 
+        gender, race, urban,
+        biden_vote_share, homicide_rate)
+
+psframe$predicted_probability <- predict(model2, psframe, type = 'response')
+
+mrp2 <- psframe |> 
+  group_by(abb) |> 
+  summarize(estimate = weighted.mean(predicted_probability, n))
+```
+
+---
+
+# Why not make the model even better??
+
+```{r, echo = FALSE, out.width = 800}
+p <- target |> 
+  mutate(conf_low = pct_support - 1.96*sqrt(pct_support*(1-pct_support)/num_respondents),
+         conf_high = pct_support + 1.96*sqrt(pct_support*(1-pct_support)/num_respondents)) |> 
+  mutate(abb = fct_reorder(abb, pct_support)) |> 
+  ggplot(mapping = aes(x=pct_support, y=abb)) +
+  geom_point(alpha = 0.7) +
+  geom_linerange(mapping = aes(y = abb, xmin = conf_low,
+                               xmax = conf_high)) +
+  labs(x = 'Percent Who Support Police Reform Policy',
+       y = 'State') + 
+  geom_point(data = sample_summary,
+             mapping = aes(x=estimate,
+                           y=abb),
+             color = 'red') +
+  geom_point(data = mrp2,
+             mapping = aes(x=estimate,
+                           y=abb),
+             color = 'blue') +
+  theme_minimal(base_size = 12)
+
+p
+```
+
+--
+
+Wait. What happened?
 
 ---
 
@@ -547,37 +603,120 @@ class: center, middle, inverse
 --
 
 - A model with too few parameters will not accurately predict the outcome. 
+
   - Such a model is *underfit*.
   
 --
   
 - But a model with too many parameters is a problem as well.
-  - It captures so much in-sample variation that it fails fails to borrow information from across groups. 
+
+  - It captures so much in-sample variation that it fails fails to serve its purpose: borrowing information from one group to make inferences about another. 
+  
   - Such a model is *overfit*. 
 
 --
 
 To make good predictions, you want a model that is between these two extremes!
 
+???
+
+The reason why we fit a model in the first place was so we could learn something about North Dakota from the people in South Dakota. But if North Dakota and South Dakota both have their own individual parameters, that's the model's way of saying "North Dakota and South Dakota are different entities, and I can't learn anything about South Dakota from North Dakota, or vice versa". 
+
 ---
 
 class: center, middle, inverse
 
-
+# Regularization
 
 ---
+
+# Regularization
+
+--
+
+- Regularization is the process of making your models a bit *worse* at fitting your data, so they avoid overfitting and do a better job at predicting out of sample.
+
+--
+
+- One approach to regularization is [multilevel modeling](https://bookdown.org/jl5522/MRP-case-studies/).
+
+--
+
+- ...but I'm going to show you LASSO, because it's slightly easier to grasp in a single lecture. 
+
+---
+
+## Fit a regularized model
+
+```{r}
+library(tidymodels)
+
+model3 <- logistic_reg(penalty = 0.01, mixture = 1) |>
+  set_engine('glmnet') |>
+  fit(formula = factor(defund_police) ~ age_cat + 
+        pew_religimp + gender +
+                race + urban + abb + 
+                biden_vote_share +
+                homicide_rate,
+      data = ces_sample)
+```
+
+---
+
+## Poststratify the Regularized Model
+
+```{r}
+psframe <- psframe |> 
+  bind_cols(predict(model3, psframe, type = 'prob'))
+
+mrp3 <- psframe |> 
+  group_by(abb) |> 
+  summarize(estimate = weighted.mean(.pred_1, n))
+```
+
+---
+
+## Compare Sample Means with Estimates from Regularized Model
+
+```{r, echo = FALSE, out.width = 800}
+p <- target |> 
+  mutate(conf_low = pct_support - 1.96*sqrt(pct_support*(1-pct_support)/num_respondents),
+         conf_high = pct_support + 1.96*sqrt(pct_support*(1-pct_support)/num_respondents)) |> 
+  mutate(abb = fct_reorder(abb, pct_support)) |> 
+  ggplot(mapping = aes(x=pct_support, y=abb)) +
+  geom_point(alpha = 0.7) +
+  geom_linerange(mapping = aes(y = abb, xmin = conf_low,
+                               xmax = conf_high)) +
+  labs(x = 'Percent Who Support Police Reform Policy',
+       y = 'State') + 
+  geom_point(data = sample_summary,
+             mapping = aes(x=estimate,
+                           y=abb),
+             color = 'red') +
+  geom_point(data = mrp3,
+             mapping = aes(x=estimate,
+                           y=abb),
+             color = 'blue') +
+  theme_minimal(base_size = 12)
+
+p
+
+```
+
+---
+
 
 class: inverse, center, middle
 
-# Refinements
+# Extensions
 
 ---
 
-# Refinements
+# Extensions
 
-1. More complex first stage models
+1. Stacked Regression and Poststratification (Ornstein, 2020)
 
-2. Synthetic poststratification
+2. Synthetic poststratification (Leemann & Wasserfallen, 2017)
 
 
 ---
