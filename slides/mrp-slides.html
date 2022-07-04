@@ -87,7 +87,7 @@ Our approach today:
 
 --
 
-- Estimate support in small areas using those variables.
+- Use those variables to estimate support in small areas.
 
 --
 
@@ -99,11 +99,11 @@ By the end of the lecture, you'll be able to:
 
 --
 
-- Generate MRP estimates using sample code
+- Generate MRP estimates using sample code in `R`
 
 --
 
-- Explain when to use more sophisticated variants of MRP, including:
+- Time permitting, we'll explore two recent variants of MRP:
 
   - Stacked regression and postratification (SRP)
   - Synthetic poststratification (MrsP)
@@ -118,7 +118,7 @@ All code and data (including these slides) are available on [GitHub](https://git
 
 ???
 
-Pause here. This includes materials from the book chapter as well, though some of the things I'm going to show you today are different than what I focus on in the chapter. In particular, I'll give you a bit more detail on multilevel models, and show you a fully Bayesian implementation. 
+Pause here. This includes materials from the book chapter as well, though some of the things I'm going to show you today are different than what I focus on in the chapter. In particular, I'll give you a bit more detail on multilevel models. (Now go to the page and show them how you can clone or download the repository.)
 
 ---
 
@@ -135,6 +135,7 @@ class: center, inverse, middle
 ```r
 # load some R libraries we'll need
 library(tidyverse)
+library(modelsummary)
 
 # load CES (2020) national-level survey
 load( 'data/CES-2020-All.RData' )
@@ -144,10 +145,11 @@ names(ces)
 
 ```
  [1] "caseid"             "gender"             "educ"              
- [4] "race"               "age"                "abb"               
- [7] "division"           "pew_religimp"       "homeowner"         
-[10] "urban"              "parent"             "military_household"
-[13] "defund_police"      "homicide_rate"      "biden_vote_share"  
+ [4] "race"               "age"                "age_cat"           
+ [7] "abb"                "division"           "pew_religimp"      
+[10] "homeowner"          "urban"              "parent"            
+[13] "military_household" "defund_police"      "homicide_rate"     
+[16] "biden_vote_share"  
 ```
 
 ```r
@@ -155,7 +157,7 @@ dim(ces)
 ```
 
 ```
-[1] 60283    15
+[1] 60283    16
 ```
 
 ???
@@ -200,47 +202,42 @@ head(target)
 
 ## Draw a Sample
 
-To test the capabilities of MRP, we're going to draw a sample and try to estimate the state-level means from the representative survey.
+To test the capabilities of MRP, we're going to draw a smaller sample and use it to estimate the state-level means from the representative survey.
 
 
 ```r
 ces_sample &lt;- ces |&gt; 
-  slice_sample(n=5000)
+  slice_sample(n=3000)
 
-dim(ces_sample)
-```
-
-```
-[1] 5000   15
-```
-
-```r
 sample_summary &lt;- ces_sample  |&gt;  
   group_by(abb) |&gt;  
   summarize(estimate = mean(defund_police),
             num_respondents = n())
 
-sample_summary
+head(sample_summary)
 ```
 
 ```
-# A tibble: 48 x 3
-   abb   estimate num_respondents
-   &lt;chr&gt;    &lt;dbl&gt;           &lt;int&gt;
- 1 AL       0.416             101
- 2 AR       0.255              51
- 3 AZ       0.364             118
- 4 CA       0.490             435
- 5 CO       0.562              96
- 6 CT       0.468              62
- 7 DE       0.448              29
- 8 FL       0.406             399
- 9 GA       0.393             183
-10 IA       0.439              41
-# ... with 38 more rows
+# A tibble: 6 x 3
+  abb   estimate num_respondents
+  &lt;chr&gt;    &lt;dbl&gt;           &lt;int&gt;
+1 AL       0.5                46
+2 AR       0.276              29
+3 AZ       0.324              71
+4 CA       0.504             278
+5 CO       0.556              63
+6 CT       0.5                36
 ```
 
-&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-7-1.png" width="600" style="display: block; margin: auto;" /&gt;
+???
+
+Notice that our sample estimates are pretty wildly off the mark.
+
+---
+
+## Sample Estimates
+
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-7-1.png" width="800" style="display: block; margin: auto;" /&gt;
 
 ???
 
@@ -248,21 +245,44 @@ Note that California, with 516 respondents, is very precisely estimated.
 
 ---
 
+class: center, middle, inverse
 
----
-
-## Data
-
-- Replication crisis in psychology the social sciences (e.g. Button 2010)
-
-- Small sample sizes and noisy measurement create false positives
+# Use All The Information You Have!
 
 ???
 
-- May want Conditional Average Treatment Effects (CATEs)
+We have more information than this. We know things about the people who live in Delaware, even though we only have 21 respondents from Delaware.
 
 ---
 
+## Use All The Information You Have!
+
+--
+
+We only have 6 respondents from North Dakota. So, is that all the information we have about North Dakotans?
+
+--
+
+- **No!**
+
+--
+
+- We also have 9 respondents from *South* Dakota. 
+
+--
+
+- And we have hundreds of similar respondents (predominantly white, rural, religious) from across the country. 
+
+--
+
+Based on how other, similar respondents answered the police reform question, we can come up with a better estimate about how North Dakotans feel. In a sense, we are "borrowing" information from elsewhere in the survey.
+
+
+???
+
+If you don't know much about the geography of US states, not to worry. You see, South Dakota is directly to the south of North Dakota. And they are very similar states. The only reason they are different states at all is because Republicans were happy to admit two states instead of 1 so they could increase their number of seats in the US Senate. 
+
+---
 
 class: inverse, center, middle
 
@@ -397,49 +417,183 @@ Everything else is refinements: making the first-stage model more complex or dif
 
 ---
 
+class: inverse, center, middle
+
+# Back To Our Policy Example
+
+---
+
+# Step 1: Fit a Model
+
+--
+
+Which variables should we use to predict support for police reform?
 
 
+```r
+names(ces_sample)
+```
+
+```
+ [1] "caseid"             "gender"             "educ"              
+ [4] "race"               "age"                "age_cat"           
+ [7] "abb"                "division"           "pew_religimp"      
+[10] "homeowner"          "urban"              "parent"            
+[13] "military_household" "defund_police"      "homicide_rate"     
+[16] "biden_vote_share"  
+```
+
+---
+
+# Step 1: Fit a Model
+
+
+```r
+model1 &lt;- glm(defund_police ~ age_cat + pew_religimp,
+              family = 'binomial',
+              data = ces_sample)
+
+modelplot(model1)
+```
+
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-12-1.png" width="600" style="display: block; margin: auto;" /&gt;
+
+---
+
+# Step 2: Postratify
+
+First, create a *poststratification frame*, which counts every possible combination of characteristics in the population of interest.
+
+
+```r
+psframe &lt;- ces |&gt; 
+  count(abb, age_cat, pew_religimp)
+
+head(psframe)
+```
+
+```
+# A tibble: 6 x 4
+  abb   age_cat pew_religimp             n
+  &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;                &lt;int&gt;
+1 AL    18-29   Not_at_all_important    35
+2 AL    18-29   Not_too_important       30
+3 AL    18-29   Somewhat_important      70
+4 AL    18-29   Very_important          70
+5 AL    30-39   Not_at_all_important    36
+6 AL    30-39   Not_too_important       19
+```
+
+--
+
+**NOTE**: For most applications, you will want to compute the poststratification frame from census data, not survey data.
+
+???
+
+Because you want to know the composition of the general population, not just the composition of your survey sample.
+
+---
+
+# Step 2: Poststratify
+
+Next, we estimate the probability that each group in the poststratification frame will support the policy.
+
+
+```r
+psframe$predicted_probability &lt;- predict(model1, psframe, type = 'response')
+
+head(psframe)
+```
+
+```
+# A tibble: 6 x 5
+  abb   age_cat pew_religimp             n predicted_probability
+  &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;                &lt;int&gt;                 &lt;dbl&gt;
+1 AL    18-29   Not_at_all_important    35                 0.762
+2 AL    18-29   Not_too_important       30                 0.615
+3 AL    18-29   Somewhat_important      70                 0.526
+4 AL    18-29   Very_important          70                 0.411
+5 AL    30-39   Not_at_all_important    36                 0.750
+6 AL    30-39   Not_too_important       19                 0.600
+```
+
+---
+
+# Step 2: Postratify
+
+Finally, weight the model's predictions by the number of people in each category.
+
+
+```r
+mrp &lt;- psframe |&gt; 
+  group_by(abb) |&gt; 
+  summarize(estimate = weighted.mean(predicted_probability, n))
+
+head(mrp)
+```
+
+```
+# A tibble: 6 x 2
+  abb   estimate
+  &lt;chr&gt;    &lt;dbl&gt;
+1 AL       0.388
+2 AR       0.389
+3 AZ       0.411
+4 CA       0.452
+5 CO       0.441
+6 CT       0.435
+```
+
+---
+
+# Compare MRP and Sample Means
+
+&lt;img src="mrp-slides_files/figure-html/unnamed-chunk-16-1.png" width="800" style="display: block; margin: auto;" /&gt;
+
+---
 
 class: center, middle, inverse
 
-# Use All The Information You Have!
-
-???
-
-We have more information than this. We know things about the people who live in Delaware, even though we only have 21 respondents from Delaware.
+# Well, if that worked so well...
 
 ---
 
-## Use All The Information You Have!
-
---
-
-We only have 10 respondents from North Dakota. So, is that all the information we have about North Dakotans?
-
---
-
-- **No!**
-
---
-
-- We also have 16 respondents from *South* Dakota. 
-
---
-
-- We have thousands of similar respondents (predominantly white, rural, religious) from across the country. 
-
---
-
-Based on how other, similar respondents answered the police reform question, we can come up with a better estimate about how North Dakotans feel. In a sense, we are "borrowing" information from elsewhere in the survey.
+# Why not make the model even better??
 
 
-???
-
-If you don't know much about the geography of US states, not to worry. You see, South Dakota is directly to the south of North Dakota. And they are very similar states. The only reason they are different states at all is because Republicans were happy to admit two states instead of 1 so they could increase their number of seats in the US Senate. 
+```r
+model2 &lt;- glm(defund_police ~ age_cat + pew_religimp + gender + race + abb, data = ces_sample)
+```
 
 ---
 
-## Overfitting vs. Underfitting
+class: center, middle, inverse
+
+# The Dangers of Overfitting and Underfitting
+
+---
+
+## Overfitting and Underfitting
+
+--
+
+- A model with too few parameters will not accurately predict the outcome. 
+  - Such a model is *underfit*.
+  
+--
+  
+- But a model with too many parameters is a problem as well.
+  - It captures so much in-sample variation that it fails fails to borrow information from across groups. 
+  - Such a model is *overfit*. 
+
+--
+
+To make good predictions, you want a model that is between these two extremes!
+
+---
+
+class: center, middle, inverse
+
 
 
 ---
@@ -509,13 +663,19 @@ class: inverse, center, middle
 
 ---
 
-class: center, middle
+class: center, middle, inverse
 
 # Thanks!
 
+Joe Ornstein
 
+*University of Georgia*
 
+Email: [jornstein@uga.edu](mailto:jornstein@uga.edu)
 
+Website: [joeornstein.github.io](https://joeornstein.github.io/)
+
+Please feel free to reach out with additional questions.
 
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>

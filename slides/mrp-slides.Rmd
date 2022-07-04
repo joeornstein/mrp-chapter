@@ -98,7 +98,7 @@ Our approach today:
 
 --
 
-- Estimate support in small areas using those variables.
+- Use those variables to estimate support in small areas.
 
 --
 
@@ -110,11 +110,11 @@ By the end of the lecture, you'll be able to:
 
 --
 
-- Generate MRP estimates using sample code
+- Generate MRP estimates using sample code in `R`
 
 --
 
-- Explain when to use more sophisticated variants of MRP, including:
+- Time permitting, we'll explore two recent variants of MRP:
 
   - Stacked regression and postratification (SRP)
   - Synthetic poststratification (MrsP)
@@ -131,7 +131,7 @@ knitr::include_graphics('img/qrcode_github.png')
 
 ???
 
-Pause here. This includes materials from the book chapter as well, though some of the things I'm going to show you today are different than what I focus on in the chapter. In particular, I'll give you a bit more detail on multilevel models, and show you a fully Bayesian implementation. 
+Pause here. This includes materials from the book chapter as well, though some of the things I'm going to show you today are different than what I focus on in the chapter. In particular, I'll give you a bit more detail on multilevel models. (Now go to the page and show them how you can clone or download the repository.)
 
 ---
 
@@ -147,6 +147,7 @@ class: center, inverse, middle
 ```{r}
 # load some R libraries we'll need
 library(tidyverse)
+library(modelsummary)
 
 # load CES (2020) national-level survey
 load( 'data/CES-2020-All.RData' )
@@ -189,7 +190,8 @@ p <- target |>
   geom_linerange(mapping = aes(y = abb, xmin = conf_low,
                                xmax = conf_high)) +
   labs(x = 'Percent Who Support Police Reform Policy',
-       y = 'State')
+       y = 'State') +
+  theme_minimal(base_size = 12)
 
 p
 ```
@@ -202,7 +204,7 @@ To test the capabilities of MRP, we're going to draw a smaller sample and use it
 
 ```{r}
 ces_sample <- ces |> 
-  slice_sample(n=5000)
+  slice_sample(n=3000)
 
 sample_summary <- ces_sample  |>  
   group_by(abb) |>  
@@ -212,11 +214,15 @@ sample_summary <- ces_sample  |>
 head(sample_summary)
 ```
 
+???
+
+Notice that our sample estimates are pretty wildly off the mark.
+
 ---
 
-## Draw a Sample
+## Sample Estimates
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, out.width=800}
 p + 
   geom_point(data = sample_summary,
              mapping = aes(x=estimate,
@@ -244,7 +250,7 @@ We have more information than this. We know things about the people who live in 
 
 --
 
-We only have 10 respondents from North Dakota. So, is that all the information we have about North Dakotans?
+We only have 6 respondents from North Dakota. So, is that all the information we have about North Dakotans?
 
 --
 
@@ -252,11 +258,11 @@ We only have 10 respondents from North Dakota. So, is that all the information w
 
 --
 
-- We also have 16 respondents from *South* Dakota. 
+- We also have 9 respondents from *South* Dakota. 
 
 --
 
-- We have thousands of similar respondents (predominantly white, rural, religious) from across the country. 
+- And we have hundreds of similar respondents (predominantly white, rural, religious) from across the country. 
 
 --
 
@@ -419,13 +425,144 @@ class: inverse, center, middle
 
 # Step 1: Fit a Model
 
+--
+
+Which variables should we use to predict support for police reform?
+
 ```{r}
 names(ces_sample)
 ```
 
 ---
 
-## Overfitting vs. Underfitting
+# Step 1: Fit a Model
+
+```{r}
+model1 <- glm(defund_police ~ age_cat + pew_religimp,
+              family = 'binomial',
+              data = ces_sample)
+
+modelplot(model1)
+```
+
+---
+
+# Step 2: Postratify
+
+First, create a *poststratification frame*, which counts every possible combination of characteristics in the population of interest.
+
+```{r}
+psframe <- ces |> 
+  count(abb, age_cat, pew_religimp)
+
+head(psframe)
+```
+
+--
+
+**NOTE**: For most applications, you will want to compute the poststratification frame from census data, not survey data.
+
+???
+
+Because you want to know the composition of the general population, not just the composition of your survey sample.
+
+---
+
+# Step 2: Poststratify
+
+Next, we estimate the probability that each group in the poststratification frame will support the policy.
+
+```{r}
+psframe$predicted_probability <- predict(model1, psframe, type = 'response')
+
+head(psframe)
+```
+
+---
+
+# Step 2: Postratify
+
+Finally, weight the model's predictions by the number of people in each category.
+
+```{r}
+mrp <- psframe |> 
+  group_by(abb) |> 
+  summarize(estimate = weighted.mean(predicted_probability, n))
+
+head(mrp)
+```
+
+---
+
+# Compare MRP and Sample Means
+
+```{r, echo = FALSE, out.width=800}
+p <- target |> 
+  mutate(conf_low = pct_support - 1.96*sqrt(pct_support*(1-pct_support)/num_respondents),
+         conf_high = pct_support + 1.96*sqrt(pct_support*(1-pct_support)/num_respondents)) |> 
+  mutate(abb = fct_reorder(abb, pct_support)) |> 
+  ggplot(mapping = aes(x=pct_support, y=abb)) +
+  geom_point(alpha = 0.7) +
+  geom_linerange(mapping = aes(y = abb, xmin = conf_low,
+                               xmax = conf_high)) +
+  labs(x = 'Percent Who Support Police Reform Policy',
+       y = 'State') + 
+  geom_point(data = sample_summary,
+             mapping = aes(x=estimate,
+                           y=abb),
+             color = 'green') +
+  geom_point(data = mrp,
+             mapping = aes(x=estimate,
+                           y=abb),
+             color = 'blue') +
+  theme_minimal(base_size = 12)
+
+p
+```
+
+---
+
+class: center, middle, inverse
+
+# Well, if that worked so well...
+
+---
+
+# Why not make the model even better??
+
+```{r}
+model2 <- glm(defund_police ~ age_cat + pew_religimp + gender + race + abb, data = ces_sample)
+```
+
+---
+
+class: center, middle, inverse
+
+# The Dangers of Overfitting and Underfitting
+
+---
+
+## Overfitting and Underfitting
+
+--
+
+- A model with too few parameters will not accurately predict the outcome. 
+  - Such a model is *underfit*.
+  
+--
+  
+- But a model with too many parameters is a problem as well.
+  - It captures so much in-sample variation that it fails fails to borrow information from across groups. 
+  - Such a model is *overfit*. 
+
+--
+
+To make good predictions, you want a model that is between these two extremes!
+
+---
+
+class: center, middle, inverse
+
 
 
 ---
@@ -495,11 +632,17 @@ image_link('img/ROS_frontcover.png','https://avehtari.github.io/ROS-Examples/',w
 
 ---
 
-class: center, middle
+class: center, middle, inverse
 
 # Thanks!
 
+Joe Ornstein
 
+*University of Georgia*
 
+Email: [jornstein@uga.edu](mailto:jornstein@uga.edu)
 
+Website: [joeornstein.github.io](https://joeornstein.github.io/)
+
+Please feel free to reach out with additional questions.
 
