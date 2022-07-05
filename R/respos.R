@@ -1,4 +1,5 @@
 # Multilevel Regression and Poststratification
+# Code from RESPOS Summer School (5 July, 2022)
 
 
 library(tidyverse)
